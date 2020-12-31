@@ -1,4 +1,4 @@
-MASTER_SHEET = "1EMwldjMQ_TWb8i0qGcpyUN2n31O4lmZK2sdw38ecdCY";
+errno = 0;
 
 function updateForm() {
 	log("running updateForm()");
@@ -19,35 +19,59 @@ function updateForm() {
 	log("updateForm() success!");
 }
 
-function onFormSubmit(e) {
-	log("running onFormSubmit()");
-	var masterSheet = SpreadsheetApp.openById(MASTER_SHEET);
-	SpreadsheetApp.setActiveSpreadsheet(masterSheet);
-	var masterRawScoresSheet = masterSheet.getSheetByName("Raw Scores");
-	copyResponseToSheet(e.response, masterRawScoresSheet);
-	log("onFormSubmit() success!");
-}
-
 function initializeForm() {
 	log("running initializeForm()");
 	var spr = SpreadsheetApp.getActiveSpreadsheet();
+	shareSpreadsheet(spr);
 	var formURL = spr.getRange("B2").getValue();
 	var form = FormApp.openByUrl(formURL);
-	masterSheet = DriveApp.getFileById(MASTER_SHEET);
-	createFormSubmitTrigger(form);
 	linkSheetToForm(form, spr);
 	spr.getRange("B14").setValue(formatDate(new Date(Date.now())));
-	log("initializeForm() success!");
+
+	var bankUrl = spr.getRange("B3").getValue();
+	linkSheetToBank(bankUrl, spr);
+
+	if (errno) {
+		log("initializeForm() completed with one or more errors.");
+	} else {
+		log("initializeForm() success!");
+	}
 }
 
-function createFormSubmitTrigger(form) {
-	var triggers = ScriptApp.getProjectTriggers();
-	for (var i = 0; i < triggers.length; i++) {
-		if (triggers[i].getEventType() == ScriptApp.EventType.ON_FORM_SUBMIT && triggers[i].getHandlerFunction() == 'onFormSubmit') {
-			return;
+function linkSheetToBank(bankUrl, spr) {
+	var bankSheet = SpreadsheetApp.openByUrl(bankUrl).getSheetByName("Tournament Control Panel IDs");
+	var tournamentSheetId = spr.getId();
+	if (sheetIdInBank(tournamentSheetId, bankSheet)) {
+		return;
+	}
+	var row = getFirstEmptyRow(bankSheet);
+	bankSheet.getRange(row, 1).setValue(tournamentSheetId);
+}
+
+function sheetIdInBank(tournamentSheetId, bankSheet) {
+	var existingIds = new Set(bankSheet.getRange("A:A").getValues().map(row => row[0]).filter(id => id.trim() != ""));
+	return existingIds.has(tournamentSheetId);
+}
+
+function shareSpreadsheet(spr) {
+	var emails = getEmailAddresses(spr);
+	var spreadsheetId = spr.getId();
+	for (email of emails) {
+		try {
+			DriveApp.getFileById(spreadsheetId).addViewer(email);
+			log(`File successfully shared with ${email}.`);
+		} catch (e) {
+			log(`Error sharing with ${email}. ${e.name}: ${e.message}`);
+			errno |= 1;
 		}
 	}
-	ScriptApp.newTrigger('onFormSubmit').forForm(form).onFormSubmit().create();
+}
+
+function getEmailAddresses(spr) {
+	var controlPanelSheet = spr.getSheetByName("Control Panel");
+	var values = controlPanelSheet.getRange("E:E").getValues().map(row => row[0]).slice(1);
+	var emails = values.filter(value => value && value.trim() != "");
+	return emails;
 }
 
 function linkSheetToForm(form, spr) {

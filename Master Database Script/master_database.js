@@ -28,6 +28,55 @@ const teamDataColumnHeadings = [
 	"(Self) Comments (Communication)",
 	"(Self) Additional Comments"
 ];
+var errno = 0;
+
+function pullScoresFromBank() {
+	log("running pullScoresFromBank()");
+
+	var lock = LockService.getScriptLock();
+	try {
+		lock.waitLock(10000);
+	} catch (e) {
+		log("It appears that this function is already being run by another user. Please wait for that operation to finish before calling this one again.");
+		return;
+	}
+
+	var controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Control Panel");
+	var rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Raw Scores");
+
+	rawScoreSheet.clearContents();
+	createColumnHeadings(rawScoreSheet);
+	var numCols = getFirstEmptyColumn(rawScoreSheet);
+
+	var bankSheetUrl = controlPanel.getRange("B1").getValue();
+	var bankSheet = SpreadsheetApp.openByUrl(bankSheetUrl).getSheetByName("Tournament Control Panel IDs");
+	var controlPanelIds = getControlPanelIds(bankSheet);
+	for (id of controlPanelIds) {
+		log(`importing scores from sheet ${id}`);
+		try {
+			var tournamentScoresSheet = SpreadsheetApp.openById(id).getSheetByName("Raw Scores");
+			var numRows = getFirstEmptyRow(tournamentScoresSheet) - 1;
+			var range = tournamentScoresSheet.getRange(2, 1, numRows, numCols);
+			var startRow = getFirstEmptyRow(rawScoreSheet);
+			rawScoreSheet.getRange(startRow, 1, numRows, numCols).setValues(range.getValues());
+			log(`import succeeded for sheet ${id}`);
+		} catch (e) {
+			log(`import failed for sheet ${id}. ${e.name}: ${e.message}`);
+			errno |= 1;
+		}
+	}
+
+	if (errno) {
+		log("pullScoresFromBank() completed with one or more errors.");
+	} else {
+		log("pullScoresFromBank() success!");
+	}
+}
+
+function getControlPanelIds(bankSheet) {
+	var rows = getFirstEmptyRow(bankSheet);
+	return bankSheet.getRange("A:A").getValues().map(row => row[0]).filter(id => id.trim() != "");
+}
 
 function updateMasterDatabase() {
 	log("running updateMasterDatabase()");
@@ -259,6 +308,16 @@ function getFirstEmptyRow(sheet) {
 	var values = column.getValues();
 	var ct = 0;
 	while (values[ct] && values[ct][0] != "") {
+		ct++;
+	}
+	return (ct+1);
+}
+
+function getFirstEmptyColumn(sheet) {
+	var row = sheet.getRange('1:1');
+	var values = row.getValues();
+	var ct = 0;
+	while (values[0][ct] && values[0][ct] != "") {
 		ct++;
 	}
 	return (ct+1);
