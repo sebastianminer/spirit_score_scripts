@@ -33,9 +33,7 @@ function initializeForm() {
 	var spr = SpreadsheetApp.getActiveSpreadsheet();
 	var formURL = spr.getRange("B2").getValue();
 	var form = FormApp.openByUrl(formURL);
-	//var masterSheet = SpreadsheetApp.openById(MASTER_SHEET);
 	masterSheet = DriveApp.getFileById(MASTER_SHEET);
-	masterSheet.set
 	createFormSubmitTrigger(form);
 	linkSheetToForm(form, spr);
 	spr.getRange("B14").setValue(formatDate(new Date(Date.now())));
