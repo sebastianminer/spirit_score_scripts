@@ -1,18 +1,33 @@
 const scoreKeys = ["rules", "fouls", "fairMind", "attitude", "communication", "total"];
-const teamDataColumnHeadings = ["Team",
-								"Number of Scores",
-								"Total",
-								"Rules Knowledge and Use",
-								"Fouls and Body Contact",
-								"Fair Mindedness",
-								"Positive Attitude and Self-Control",
-								"Communication",
-								"Comments (Rules Knowledge and Use)",
-								"Comments (Fouls and Body Contact)",
-								"Comments (Fair Mindedness)",
-								"Comments (Positive Attitude and Self-Control)",
-								"Comments (Communication)",
-								"Additional Comments"];
+const teamDataColumnHeadings = [
+	"Team",
+	"Number of Scores",
+	"Total",
+	"Rules Knowledge and Use",
+	"Fouls and Body Contact",
+	"Fair Mindedness",
+	"Positive Attitude and Self-Control",
+	"Communication",
+	"Comments (Rules Knowledge and Use)",
+	"Comments (Fouls and Body Contact)",
+	"Comments (Fair Mindedness)",
+	"Comments (Positive Attitude and Self-Control)",
+	"Comments (Communication)",
+	"Additional Comments",
+	"(Self) Number of Scores",
+	"(Self) Total",
+	"(Self) Rules Knowledge and Use",
+	"(Self) Fouls and Body Contact",
+	"(Self) Fair Mindedness",
+	"(Self) Positive Attitude and Self-Control",
+	"(Self) Communication",
+	"(Self) Comments (Rules Knowledge and Use)",
+	"(Self) Comments (Fouls and Body Contact)",
+	"(Self) Comments (Fair Mindedness)",
+	"(Self) Comments (Positive Attitude and Self-Control)",
+	"(Self) Comments (Communication)",
+	"(Self) Additional Comments"
+];
 
 function updateMasterDatabase() {
 	log("running updateMasterDatabase()");
@@ -37,27 +52,40 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	var sortedTeamList = Object.keys(teamAverages).sort();
 	var numRows = sortedTeamList.length;
 	var numColumns = teamDataColumnHeadings.length;
-	var values = new Array(numRows);
+	var scores = new Array(numRows);
 	sortedTeamList.forEach(function(team, index) {
-		values[index] = [
+		scores[index] = [
 			team,
-			teamData[team].length,
-			teamAverages[team].total,
-			teamAverages[team].rules,
-			teamAverages[team].fouls,
-			teamAverages[team].fairMind,
-			teamAverages[team].attitude,
-			teamAverages[team].communication,
-			JSON.stringify(teamComments[team].rules),
-			JSON.stringify(teamComments[team].fouls),
-			JSON.stringify(teamComments[team].fairMind),
-			JSON.stringify(teamComments[team].attitude),
-			JSON.stringify(teamComments[team].communication),
-			JSON.stringify(teamComments[team].total),
+			teamData[team].scores.length,
+			teamAverages[team].scores.total,
+			teamAverages[team].scores.rules,
+			teamAverages[team].scores.fouls,
+			teamAverages[team].scores.fairMind,
+			teamAverages[team].scores.attitude,
+			teamAverages[team].scores.communication,
+			JSON.stringify(teamComments[team].comments.rules),
+			JSON.stringify(teamComments[team].comments.fouls),
+			JSON.stringify(teamComments[team].comments.fairMind),
+			JSON.stringify(teamComments[team].comments.attitude),
+			JSON.stringify(teamComments[team].comments.communication),
+			JSON.stringify(teamComments[team].comments.total),
+			teamData[team].self_scores.length,
+			teamAverages[team].self_scores.total,
+			teamAverages[team].self_scores.rules,
+			teamAverages[team].self_scores.fouls,
+			teamAverages[team].self_scores.fairMind,
+			teamAverages[team].self_scores.attitude,
+			teamAverages[team].self_scores.communication,
+			JSON.stringify(teamComments[team].self_comments.rules),
+			JSON.stringify(teamComments[team].self_comments.fouls),
+			JSON.stringify(teamComments[team].self_comments.fairMind),
+			JSON.stringify(teamComments[team].self_comments.attitude),
+			JSON.stringify(teamComments[team].self_comments.communication),
+			JSON.stringify(teamComments[team].self_comments.total)
 		];
 	});
 	var range = teamDataSheet.getRange(2, 1, numRows, numColumns);
-	range.setValues(values);
+	range.setValues(scores);
 }
 
 function createColumnHeadings(sheet) {
@@ -68,19 +96,34 @@ function createColumnHeadings(sheet) {
 function compileTeamComments(teamData) {
 	var teamComments = {};
 	for (var team of Object.keys(teamData)) {
-		teamComments[team] = {};
+		teamComments[team] = {
+			comments: {},
+			self_comments: {}
+		};
 		for (commentCategory of scoreKeys) {
-			teamComments[team][commentCategory] = [];
+			teamComments[team].comments[commentCategory] = [];
+			teamComments[team].self_comments[commentCategory] = [];
 		}
 
-		var comments = teamData[team].map(function(score) {
+		var comments = teamData[team].scores.map(function(score) {
 			return score.comments;
+		});
+		var self_comments = teamData[team].self_scores.map(function(self_score) {
+			return self_score.comments;
 		});
 
 		for (var row of comments) {
 			for (var commentCategory of Object.keys(row)) {
 				if (row[commentCategory] && row[commentCategory].trim() != "") {
-					teamComments[team][commentCategory].push(row[commentCategory]);
+					teamComments[team].comments[commentCategory].push(row[commentCategory]);
+				}
+			}
+		}
+
+		for (var row of self_comments) {
+			for (var commentCategory of Object.keys(row)) {
+				if (row[commentCategory] && row[commentCategory].trim() != "") {
+					teamComments[team].self_comments[commentCategory].push(row[commentCategory]);
 				}
 			}
 		}
@@ -91,22 +134,32 @@ function compileTeamComments(teamData) {
 function compileTeamAverages(teamData) {
 	var averages = {};
 	for (var team of Object.keys(teamData)) {
-		averages[team] = {};
-		var numScores = teamData[team].length;
-		var scoresTotal = {};
-		for (var key of scoreKeys) {
-			scoresTotal[key] = 0;
-		}
-		for (var score of teamData[team]) {
-			for (key of Object.keys(scoresTotal)) {
-				scoresTotal[key] += score[key];
-			}
-		}
+		averages[team] = {
+			scores: {},
+			self_scores: {}
+		};
 
-		for (var key of Object.keys(scoresTotal)) {
-			scoresTotal[key] /= numScores;
+		for (var direction of ["scores", "self_scores"]) {
+			var numScores = teamData[team][direction].length;
+			var scoresTotal = {};
+			for (var key of scoreKeys) {
+				scoresTotal[key] = 0;
+			}
+			for (var score of teamData[team][direction]) {
+				for (key of Object.keys(scoresTotal)) {
+					scoresTotal[key] += score[key];
+				}
+			}
+
+			for (var key of Object.keys(scoresTotal)) {
+				if (!numScores) {
+					scoresTotal[key] = "-";
+				} else {
+					scoresTotal[key] /= numScores;
+				}
+			}
+			averages[team][direction] = scoresTotal;
 		}
-		averages[team] = scoresTotal;
 	}
 
 	return averages;
@@ -116,28 +169,60 @@ function compileTeamAverages(teamData) {
 function compileTeamData(rowData) {
 	teamData = {};
 	for (var row of rowData) {
+		var scoringTeam = row[1]
 		var scoredTeam = row[2];
 
+		if (!teamData.hasOwnProperty(scoringTeam)) {
+			teamData[scoringTeam] = {
+				scores: [],
+				self_scores: []
+			};
+		}
 		if (!teamData.hasOwnProperty(scoredTeam)) {
-			teamData[scoredTeam] = [];
+			teamData[scoredTeam] = {
+				scores: [],
+				self_scores: []
+			};
 		}
 
 		var score = {
 			time: row[0],
-			opponent: row[1], // this is the "your team" item in the form because this function returns scores in the perspective of the team being scored
+			opponent: scoringTeam, // this is the "your team" item in the form because this function returns scores in the perspective of the team being scored
+			day: row[3],
+			round: row[4],
 			comments: {}
 		};
 
+		var self_score = {
+			time: row[0],
+			opponent: scoredTeam, // contrast this with scoringTeam in score object
+			day: row[3],
+			round: row[4],
+			comments: {}
+		}
+
+		var numNonTotalKeys = scoreKeys.length - 1;
+		var selfScoreOffset = 2*numNonTotalKeys + 1; // offset number of columns between a score and its corresponding self-score
 		var total = 0;
-		for (var i = 0; i < scoreKeys.length-1; i+=1) {
-			score[scoreKeys[i]] = row[2*i+3];
-			total += row[2*i+3];
-			score.comments[scoreKeys[i]] = row[2*i+4];
+		var selfTotal = 0;
+		for (var i = 0; i < numNonTotalKeys; i+=1) {
+			score[scoreKeys[i]] = row[2*i+5];
+
+			// 2: each key has a score and a comment. This is the number of columns created for each key.
+			// 5: number of hardcoded columns before scores (i.e. timestamp, team name, opponent name, day, round)
+			self_score[scoreKeys[i]] = row[2*i + 5 + selfScoreOffset];
+			total += row[2*i+5];
+			selfTotal += row[2*i + 5 + selfScoreOffset];
+			score.comments[scoreKeys[i]] = row[2*i+6];
+			self_score.comments[scoreKeys[i]] = row[2*i + 6 + selfScoreOffset];
 		}
 		score[scoreKeys[scoreKeys.length-1]] = total;
-		score.comments[scoreKeys[scoreKeys.length-1]] = row[scoreKeys.length*2 + 1];
+		self_score[scoreKeys[scoreKeys.length-1]] = selfTotal;
+		score.comments[scoreKeys[scoreKeys.length-1]] = row[(scoreKeys.length-1)*2 + 5]; // additional comments
+		self_score.comments[scoreKeys[scoreKeys.length-1]] = row[(scoreKeys.length-1)*2 + 5 + selfScoreOffset]; // self additional comments
 
-		teamData[scoredTeam].push(score);
+		teamData[scoredTeam].scores.push(score);
+		teamData[scoringTeam].self_scores.push(self_score);
 	}
 	return teamData;
 }
