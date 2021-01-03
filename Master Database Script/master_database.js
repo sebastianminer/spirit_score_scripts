@@ -28,6 +28,35 @@ const teamDataColumnHeadings = [
 	"(Self) Comments (Communication)",
 	"(Self) Additional Comments"
 ];
+const rawScoreColumnHeadings = [
+	"Timestamp",
+	"Your Team Name",
+	"Opponent Team Name",
+	"Day",
+	"Round",
+	"Rules Knowledge and Use",
+	"Comments (Rules Knowledge and Use)",
+	"Fouls and Body Contact",
+	"Comments (Fouls and Body Contact)",
+	"Fair Mindedness",
+	"Comments (Fair Mindedness)",
+	"Positive Attitude and Self-Control",
+	"Comments (Positive Attitude and Self-Control",
+	"Communication",
+	"Comments (Communication)",
+	"Additional Comments",
+	"(Self) Rules Knowledge and Use",
+	"(Self) Comments (Rules Knowledge and Use)",
+	"(Self) Fouls and Body Contact",
+	"(Self) Comments (Fouls and Body Contact)",
+	"(Self) Fair Mindedness",
+	"(Self) Comments (Fair Mindedness)",
+	"(Self) Positive Attitude and Self-Control",
+	"(Self) Comments (Positive Attitude and Self-Control",
+	"(Self) Communication",
+	"(Self) Comments (Communication)",
+	"(Self) Additional Comments",
+];
 var errno = 0;
 
 function pullScoresFromBank() {
@@ -45,7 +74,7 @@ function pullScoresFromBank() {
 	var rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Raw Scores");
 
 	rawScoreSheet.clearContents();
-	createColumnHeadings(rawScoreSheet);
+	createColumnHeadings(rawScoreSheet, rawScoreColumnHeadings);
 	var numCols = getFirstEmptyColumn(rawScoreSheet);
 
 	var bankSheetUrl = controlPanel.getRange("B1").getValue();
@@ -97,7 +126,7 @@ function updateMasterDatabase() {
 function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	var teamAverages = compileTeamAverages(teamData);
 	var teamComments = compileTeamComments(teamData);
-	createColumnHeadings(teamDataSheet);
+	createColumnHeadings(teamDataSheet, teamDataColumnHeadings);
 	var sortedTeamList = Object.keys(teamAverages).sort();
 	var numRows = sortedTeamList.length;
 	var numColumns = teamDataColumnHeadings.length;
@@ -137,9 +166,9 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	range.setValues(scores);
 }
 
-function createColumnHeadings(sheet) {
-	var numColumns = teamDataColumnHeadings.length;
-	sheet.getRange(`R1C1:R1C${numColumns}`).setValues([teamDataColumnHeadings]);
+function createColumnHeadings(sheet, columnHeadings) {
+	var numColumns = columnHeadings.length;
+	sheet.getRange(`R1C1:R1C${numColumns}`).setValues([columnHeadings]);
 }
 
 function compileTeamComments(teamData) {
