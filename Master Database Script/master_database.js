@@ -95,6 +95,9 @@ function pullScoresFromBank() {
 		}
 	}
 
+	controlPanel.getRange("A13").setValue("Scores last pulled from tournament bank:");
+	controlPanel.getRange("B13").setValue(formatDate(new Date(Date.now())));
+
 	if (errno) {
 		log("pullScoresFromBank() completed with one or more errors.");
 	} else {
@@ -107,7 +110,7 @@ function getControlPanelIds(bankSheet) {
 	return bankSheet.getRange("A:A").getValues().map(row => row[0]).filter(id => id.trim() != "");
 }
 
-function updateMasterDatabase() {
+function aggregateScores() {
 	log("running updateMasterDatabase()");
 	var controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Control Panel");
 	var rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Raw Scores");
@@ -119,7 +122,8 @@ function updateMasterDatabase() {
 	var teamData = compileTeamData(rowData);
 	importTeamsIntoDatabase(teamData, teamDataSheet);
 
-	controlPanel.getRange("B13").setValue(formatDate(new Date(Date.now())));
+	controlPanel.getRange("A14").setValue("Scores last aggregated:");
+	controlPanel.getRange("B14").setValue(formatDate(new Date(Date.now())));
 	log("updateMasterDatabase() success!");
 }
 

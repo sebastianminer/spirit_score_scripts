@@ -15,6 +15,7 @@ function updateForm() {
 	setListItemChoices(yourTeamItem, teams);
 	setListItemChoices(opponentTeamItem, teams);
 
+	spr.getRange("A13").setValue("Teams last updated on form:");
 	spr.getRange("B13").setValue(formatDate(new Date(Date.now())));
 	log("updateForm() success!");
 }
@@ -26,6 +27,7 @@ function initializeForm() {
 	var formURL = spr.getRange("B2").getValue();
 	var form = FormApp.openByUrl(formURL);
 	linkSheetToForm(form, spr);
+	spr.getRange("A14").setValue("Form last linked:");
 	spr.getRange("B14").setValue(formatDate(new Date(Date.now())));
 
 	var bankUrl = spr.getRange("B3").getValue();
