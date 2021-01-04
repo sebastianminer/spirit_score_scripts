@@ -1,4 +1,4 @@
-errno = 0;
+var errno = 0;
 
 function updateForm() {
 	log("running updateForm()");
