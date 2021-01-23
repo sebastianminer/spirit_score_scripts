@@ -4,7 +4,7 @@ function onFormSubmit(e) {
 	var masterSheet = SpreadsheetApp.openById(MASTER_SHEET);
 	SpreadsheetApp.setActiveSpreadsheet(masterSheet);
 	var rawScoresSheet = masterSheet.getSheetByName("Raw Scores");
-	copyResponseToSheet(e.response, rawScoresSheet);
+	copyResponseToSheet(e.response);
 }
 
 function set_log(s) {

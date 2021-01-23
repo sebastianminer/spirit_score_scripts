@@ -6,8 +6,8 @@ function updateForm() {
 	var tournamentURL = spr.getRange("B1").getValue();
 	var teamSet = getTeamsFromURL(tournamentURL);
 	var teams = Array.from(teamSet).sort();
-	var formURL = spr.getRange("B2").getValue();
-	var form = FormApp.openByUrl(formURL);
+	var rawScoreSheet = spr.getSheetByName('Raw Scores');
+	var form = FormApp.openByUrl(rawScoreSheet.getFormUrl());
 	var listItems = form.getItems(FormApp.ItemType.LIST);
 	var yourTeamItem = listItems[0].asListItem();
 	var opponentTeamItem = listItems[1].asListItem();
@@ -27,8 +27,6 @@ function initializeForm() {
 	var formURL = spr.getRange("B2").getValue();
 	var form = FormApp.openByUrl(formURL);
 	linkSheetToForm(form, spr);
-	spr.getRange("A14").setValue("Form last linked:");
-	spr.getRange("B14").setValue(formatDate(new Date(Date.now())));
 
 	var bankUrl = spr.getRange("B3").getValue();
 	linkSheetToBank(bankUrl, spr);
