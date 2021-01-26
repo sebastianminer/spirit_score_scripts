@@ -59,8 +59,8 @@ const rawScoreColumnHeadings = [
 ];
 var errno = 0;
 
-function pullScoresFromBank() {
-	log("running pullScoresFromBank()");
+function pullScoresFromTournaments() {
+	log("running pullScoresFromTournaments()");
 
 	var lock = LockService.getScriptLock();
 	try {
@@ -77,31 +77,47 @@ function pullScoresFromBank() {
 	createColumnHeadings(rawScoreSheet, rawScoreColumnHeadings);
 	var numCols = getFirstEmptyColumn(rawScoreSheet);
 
-	var bankSheetUrl = controlPanel.getRange("B1").getValue();
-	var bankSheet = SpreadsheetApp.openByUrl(bankSheetUrl).getSheetByName("Tournament Control Panel IDs");
-	var controlPanelIds = getControlPanelIds(bankSheet);
-	for (id of controlPanelIds) {
-		log(`importing scores from sheet ${id}`);
+	let thisFileId = SpreadsheetApp.getActiveSpreadsheet().getId()
+	let thisFile = DriveApp.getFileById(thisFileId)
+	let parentFolder = thisFile.getParents().next()
+	let tournamentFolders = parentFolder.getFolders()
+
+	while (tournamentFolders.hasNext()) {
+		let tournamentFolder = tournamentFolders.next()
+		let folderName = tournamentFolder.getName()
+
+		log(`importing scores from folder ${folderName}`);
 		try {
-			var tournamentScoresSheet = SpreadsheetApp.openById(id).getSheetByName("Raw Scores");
-			var numRows = getFirstEmptyRow(tournamentScoresSheet) - 1;
-			var range = tournamentScoresSheet.getRange(2, 1, numRows, numCols);
-			var startRow = getFirstEmptyRow(rawScoreSheet);
-			rawScoreSheet.getRange(startRow, 1, numRows, numCols).setValues(range.getValues());
-			log(`import succeeded for sheet ${id}`);
+			let files = tournamentFolder.getFiles()
+			let spreadsheetSeen = false
+			while (files.hasNext()) {
+				var file = files.next();
+				if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) {
+					continue;
+				} else if (spreadsheetSeen) {
+					log(`unknown file seen in folder ${folderName}! please ensure that each folder contains only a form and a spreadsheet.`)
+				}
+				spreadsheetSeen = true;
+				var tournamentScoresSheet = SpreadsheetApp.openById(file.getId()).getSheetByName("Raw Scores");
+				var numRows = getFirstEmptyRow(tournamentScoresSheet) - 1;
+				var range = tournamentScoresSheet.getRange(2, 1, numRows, numCols);
+				var startRow = getFirstEmptyRow(rawScoreSheet);
+				rawScoreSheet.getRange(startRow, 1, numRows, numCols).setValues(range.getValues());
+			}
+			log(`import succeeded for folder ${folderName}`);
 		} catch (e) {
-			log(`import failed for sheet ${id}. ${e.name}: ${e.message}`);
+			log(`import failed for folder ${folderName}. ${e.name}: ${e.message}`);
 			errno |= 1;
 		}
 	}
 
-	controlPanel.getRange("A13").setValue("Scores last pulled from tournament bank:");
+	controlPanel.getRange("A13").setValue("Scores last pulled from tournament folders:");
 	controlPanel.getRange("B13").setValue(formatDate(new Date(Date.now())));
 
 	if (errno) {
-		log("pullScoresFromBank() completed with one or more errors.");
+		log("pullScoresFromTournaments() completed with one or more errors.");
 	} else {
-		log("pullScoresFromBank() success!");
+		log("pullScoresFromTournaments() success!");
 	}
 }
 
@@ -111,7 +127,7 @@ function getControlPanelIds(bankSheet) {
 }
 
 function aggregateScores() {
-	log("running updateMasterDatabase()");
+	log("running aggregateScores()");
 	var controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Control Panel");
 	var rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Raw Scores");
 	var teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Aggregate Team Data");
@@ -124,7 +140,7 @@ function aggregateScores() {
 
 	controlPanel.getRange("A14").setValue("Scores last aggregated:");
 	controlPanel.getRange("B14").setValue(formatDate(new Date(Date.now())));
-	log("updateMasterDatabase() success!");
+	log("aggregateScores() success!");
 }
 
 function importTeamsIntoDatabase(teamData, teamDataSheet) {

@@ -76,7 +76,7 @@ function createFolder(parentFolder, name) {
 }
 
 function getTemplateFolderContents(parentFolder) {
-	let templateFolder = parentFolder.getParents().next().getFoldersByName('Templates').next()
+	let templateFolder = parentFolder.getParents().next().getFoldersByName('Tournament Templates').next()
 	return templateFolder.getFiles()
 }
 
