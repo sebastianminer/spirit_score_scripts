@@ -1,4 +1,4 @@
-var errno = 0
+let errno = 0
 
 function onFormSubmit(e) {
 	log('running onFormSubmit()')
@@ -19,13 +19,13 @@ function onFormSubmit(e) {
 }
 
 function initializeForm() {
-	log("running initializeForm()")
-	var spr = SpreadsheetApp.getActiveSpreadsheet()
-	var formUrl = spr.getRange("B1").getValue()
-	var form = FormApp.openByUrl(formUrl)
+	log('running initializeForm()')
+	let spr = SpreadsheetApp.getActiveSpreadsheet()
+	let formUrl = spr.getRange('B1').getValue()
+	let form = FormApp.openByUrl(formUrl)
 	linkSheetToForm(form, spr, 'Responses')
 	createFormSubmissionTrigger(form)
-	log("initializeForm() success!")
+	log('initializeForm() success!')
 }
 
 function copyFilesToFolder(fileIterator, folder) {
@@ -81,7 +81,7 @@ function getTemplateFolderContents(parentFolder) {
 }
 
 function linkSheetToForm(form, spr, responseSheetName) {
-	var formDestId
+	let formDestId
 	try {
 		formDestId = form.getDestinationId()
 	}
@@ -113,21 +113,21 @@ function createFormSubmissionTrigger(form) {
 }
 
 function formatDate(date) {
-	var month = String(date.getMonth() + 1).padStart(2, '0')
-	var dateInMonth = String(date.getDate()).padStart(2, '0')
-	var year = String((date.getYear()) + 1900).padStart(2, '0')
-	var hours = String(date.getHours()).padStart(2, '0')
-	var minutes = String(date.getMinutes()).padStart(2, '0')
-	var seconds = String(date.getSeconds()).padStart(2, '0')
+	let month = String(date.getMonth() + 1).padStart(2, '0')
+	let dateInMonth = String(date.getDate()).padStart(2, '0')
+	let year = String((date.getYear()) + 1900).padStart(2, '0')
+	let hours = String(date.getHours()).padStart(2, '0')
+	let minutes = String(date.getMinutes()).padStart(2, '0')
+	let seconds = String(date.getSeconds()).padStart(2, '0')
 	return `${month}/${dateInMonth}/${year} ${hours}:${minutes}:${seconds}`
 }
 
 function log(obj, omitDate) {
-	var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Log")
-	var range = sheet.getRange("A1")
-	var cellContents = range.getValue()
-	var now = new Date(Date.now())
-	var timeStamp = `[${formatDate(now)}]`
-	var cellContents = `${omitDate ? "" : timeStamp} ${String(obj)}\n${cellContents}`
+	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Log')
+	let range = sheet.getRange('A1')
+	let cellContents = range.getValue()
+	let now = new Date(Date.now())
+	let timeStamp = `[${formatDate(now)}]`
+	let cellContents = `${omitDate ? '' : timeStamp} ${String(obj)}\n${cellContents}`
 	range.setValue(cellContents)
 }
