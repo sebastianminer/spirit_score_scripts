@@ -144,6 +144,7 @@ function aggregateScores() {
 	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
 
 	teamDataSheet.clearContents()
+	teamDataSheet.getRange('2:2').clearFormat() // clear green formatting on winner row, if the sheet had been sorted previously
 	let columnNames = getColumnNames(rawScoreSheet)
 	let rowData = getRowData(rawScoreSheet, columnNames.length)
 	let teamData = compileTeamData(rowData)
@@ -152,6 +153,21 @@ function aggregateScores() {
 	controlPanel.getRange('A14').setValue('Scores last aggregated:')
 	controlPanel.getRange('B14').setValue(formatDate(new Date(Date.now())))
 	log('aggregateScores() success!')
+}
+
+function sortScores() {
+	log('running sortScores()')
+	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
+	let numColumns = TEAM_DATA_COLUMN_HEADINGS.length
+	let numRows = getFirstEmptyRow(teamDataSheet) - 2
+	let range = teamDataSheet.getRange(2, 1, numRows, numColumns)
+	range.sort({
+		column: 3,
+		ascending: false
+	})
+	let winnerRange = teamDataSheet.getRange(2, 1, 1, numColumns)
+	winnerRange.setBackground('#B7E1CD')
+	log('sortScores() success!')
 }
 
 function importTeamsIntoDatabase(teamData, teamDataSheet) {
@@ -262,7 +278,11 @@ function compileTeamAverages(teamData) {
 
 			for (let key of Object.keys(scoresTotal)) {
 				if (!numScores) {
-					scoresTotal[key] = '-'
+					if (key === 'total') {
+						scoresTotal[key] = 0
+					} else {
+						scoresTotal[key] = '-'
+					}
 				} else {
 					scoresTotal[key] /= numScores
 				}
