@@ -97,12 +97,22 @@ function addConditionalFormatting(sheet) {
 		.whenNumberEqualTo(0)
 		.setBackground('#F4C7C3')
 		.build()
+	let fourRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenNumberEqualTo(4)
+		.setBackground('#B7E1CD')
+		.build()
 	let sixRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
 		.whenFormulaSatisfied('=AND(SUM($F2,$H2,$J2,$L2,$N2) <= 6, $A2 <> "")')
 		.setBackground('#FCE8B2')
 		.build()
-	sheet.setConditionalFormatRules([zeroRule, sixRule])
+	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenFormulaSatisfied('=AND(SUM($F2,$H2,$J2,$L2,$N2) >= 14, $A2 <> "")')
+		.setBackground('#48D16C')
+		.build()
+	sheet.setConditionalFormatRules([zeroRule, fourRule, sixRule, fourteenRule])
 }
 
 function getColumnNames(sheet) {
