@@ -57,6 +57,7 @@ function aggregateScores() {
 	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
 
 	teamDataSheet.clearContents()
+	teamDataSheet.getRange('2:2').clearFormat() // clear green formatting on winner row, if the sheet had been sorted previously
 	let columnNames = getColumnNames(rawScoreSheet)
 	let rowData = getRowData(rawScoreSheet, columnNames.length)
 	let teamData = compileTeamData(rowData)
@@ -68,6 +69,7 @@ function aggregateScores() {
 }
 
 function colorFormattingButtonClick() {
+	log('running colorFormattingButtonClick()')
 	onEdit(null)
 
 	let spr = SpreadsheetApp.getActiveSpreadsheet()
@@ -80,6 +82,22 @@ function colorFormattingButtonClick() {
 		}
 	}
 	ScriptApp.newTrigger('onEdit').forSpreadsheet(spr).onEdit().create()
+	log('colorFormattingButtonClick() success!')
+}
+
+function sortScores() {
+	log('running sortScores()')
+	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
+	let numColumns = TEAM_DATA_COLUMN_HEADINGS.length
+	let numRows = getFirstEmptyRow(teamDataSheet) - 2
+	let range = teamDataSheet.getRange(2, 1, numRows, numColumns)
+	range.sort({
+		column: 3,
+		ascending: false
+	})
+	let winnerRange = teamDataSheet.getRange(2, 1, 1, numColumns)
+	winnerRange.setBackground('#B7E1CD')
+	log('sortScores() success!')
 }
 
 // it's necessary to force conditional formatting on edit because cells edited by a form submission have their conditional formatting cleared
@@ -100,7 +118,7 @@ function addConditionalFormatting(sheet) {
 	let fourRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
 		.whenNumberEqualTo(4)
-		.setBackground('#B7E1CD')
+		.setBackground('#84D6AF')
 		.build()
 	let sixRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
@@ -110,7 +128,7 @@ function addConditionalFormatting(sheet) {
 	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
 		.whenFormulaSatisfied('=AND(SUM($F2,$H2,$J2,$L2,$N2) >= 14, $A2 <> "")')
-		.setBackground('#48D16C')
+		.setBackground('#B7E1CD')
 		.build()
 	sheet.setConditionalFormatRules([zeroRule, fourRule, sixRule, fourteenRule])
 }
@@ -254,7 +272,11 @@ function compileTeamAverages(teamData) {
 
 			for (let key of Object.keys(scoresTotal)) {
 				if (!numScores) {
-					scoresTotal[key] = '-'
+					if (key === 'total') {
+						scoresTotal[key] = 0
+					} else {
+						scoresTotal[key] = '-'
+					}
 				} else {
 					scoresTotal[key] /= numScores
 				}
