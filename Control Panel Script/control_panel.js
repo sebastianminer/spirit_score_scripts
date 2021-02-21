@@ -168,6 +168,6 @@ function log(obj, omitDate) {
 	let cellContents = range.getValue()
 	let now = new Date(Date.now())
 	let timeStamp = `[${formatDate(now)}]`
-	let cellContents = `${omitDate ? '' : timeStamp} ${String(obj)}\n${cellContents}`
+	cellContents = `${omitDate ? '' : timeStamp} ${String(obj)}\n${cellContents}`
 	range.setValue(cellContents)
 }

@@ -1,3 +1,32 @@
+const RAW_SCORE_COLUMN_HEADINGS = [
+	'Timestamp',
+	'Your Team Name',
+	'Opponent Team Name',
+	'Day',
+	'Round',
+	'Rules Knowledge and Use',
+	'Comments (Rules Knowledge and Use)',
+	'Fouls and Body Contact',
+	'Comments (Fouls and Body Contact)',
+	'Fair Mindedness',
+	'Comments (Fair Mindedness)',
+	'Positive Attitude and Self-Control',
+	'Comments (Positive Attitude and Self-Control',
+	'Communication',
+	'Comments (Communication)',
+	'Additional Comments',
+	'(Self) Rules Knowledge and Use',
+	'(Self) Comments (Rules Knowledge and Use)',
+	'(Self) Fouls and Body Contact',
+	'(Self) Comments (Fouls and Body Contact)',
+	'(Self) Fair Mindedness',
+	'(Self) Comments (Fair Mindedness)',
+	'(Self) Positive Attitude and Self-Control',
+	'(Self) Comments (Positive Attitude and Self-Control',
+	'(Self) Communication',
+	'(Self) Comments (Communication)',
+	'(Self) Additional Comments',
+]
 let errno = 0
 
 function onFormSubmit(e) {
@@ -14,7 +43,9 @@ function onFormSubmit(e) {
 	let templateFolderContents = getTemplateFolderContents(parentFolder)
 	copyFilesToFolder(templateFolderContents, tournamentFolder)
 	let emails = getEmailsFromResponse(emailResponse)
-	tournamentFolder.addEditors(emails)
+	if (emails.length) {
+		tournamentFolder.addEditors(emails)
+	}
 	log('onFormSubmit() success!')
 }
 
@@ -60,10 +91,13 @@ function copyFilesToFolder(fileIterator, folder) {
 		}
 	}
 
-	linkSheetToForm(FormApp.openByUrl(formUrl), controlPanelSpreadsheet, 'Raw Scores')
+	linkSheetToForm(FormApp.openByUrl(formUrl), controlPanelSpreadsheet, 'Raw Scores', RAW_SCORE_COLUMN_HEADINGS)
 }
 
 function getEmailsFromResponse(rawResponse) {
+	if (rawResponse.trim() === '') {
+		return []
+	}
 	return rawResponse.split('\n').map(line => line.trim()).filter(email => email)
 }
 
@@ -80,7 +114,7 @@ function getTemplateFolderContents(parentFolder) {
 	return templateFolder.getFiles()
 }
 
-function linkSheetToForm(form, spr, responseSheetName) {
+function linkSheetToForm(form, spr, responseSheetName, responseColumnHeadings) {
 	let formDestId
 	try {
 		formDestId = form.getDestinationId()
@@ -95,6 +129,10 @@ function linkSheetToForm(form, spr, responseSheetName) {
 	for (sheet of spr.getSheets()) {
 		if (sheet.getFormUrl() != null) {
 			sheet.setName(responseSheetName)
+			if (responseColumnHeadings) {
+				let numCols = responseColumnHeadings.length
+				sheet.getRange(1, 1, 1, numCols).setValues([responseColumnHeadings]) // TODO: make column headings appear in tournament form
+			}
 			break
 		}
 	}
@@ -128,6 +166,6 @@ function log(obj, omitDate) {
 	let cellContents = range.getValue()
 	let now = new Date(Date.now())
 	let timeStamp = `[${formatDate(now)}]`
-	let cellContents = `${omitDate ? '' : timeStamp} ${String(obj)}\n${cellContents}`
+	cellContents = `${omitDate ? '' : timeStamp} ${String(obj)}\n${cellContents}`
 	range.setValue(cellContents)
 }
