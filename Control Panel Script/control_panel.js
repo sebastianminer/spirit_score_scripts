@@ -67,6 +67,44 @@ function aggregateScores() {
 	log('aggregateScores() success!')
 }
 
+function colorFormattingButtonClick() {
+	onEdit(null)
+
+	let spr = SpreadsheetApp.getActiveSpreadsheet()
+	let triggers = ScriptApp.getUserTriggers(spr)
+	for (let i = 0; i < triggers.length; i++) {
+		let eventType = triggers[i].getEventType()
+		let handlerFunction = triggers[i].getHandlerFunction()
+		if (eventType === ScriptApp.EventType.ON_EDIT && handlerFunction === 'onEdit') {
+			return
+		}
+	}
+	ScriptApp.newTrigger('onEdit').forSpreadsheet(spr).onEdit().create()
+}
+
+// it's necessary to force conditional formatting on edit because cells edited by a form submission have their conditional formatting cleared
+function onEdit(e) {
+	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
+	if (sheet) {
+		addConditionalFormatting(sheet)
+	}
+}
+
+function addConditionalFormatting(sheet) {
+	let range = sheet.getRange('A2:AA1000')
+	let zeroRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenNumberEqualTo(0)
+		.setBackground('#F4C7C3')
+		.build()
+	let sixRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenFormulaSatisfied('=AND(SUM($F2,$H2,$J2,$L2,$N2) <= 6, $A2 <> "")')
+		.setBackground('#FCE8B2')
+		.build()
+	sheet.setConditionalFormatRules([zeroRule, sixRule])
+}
+
 function getColumnNames(sheet) {
 	let row = sheet.getRange('1:1')
 	let values = row.getValues()[0].filter(value => value)
