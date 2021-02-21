@@ -30,6 +30,7 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 ]
 const RAW_SCORE_COLUMN_HEADINGS = [
 	'Timestamp',
+	'Tournament', // note: not present in RAW_SCORE_COLUMN_HEADINGS in form_factory_control_panel.js
 	'Your Team Name',
 	'Opponent Team Name',
 	'Day',
@@ -52,7 +53,7 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'(Self) Fair Mindedness',
 	'(Self) Comments (Fair Mindedness)',
 	'(Self) Positive Attitude and Self-Control',
-	'(Self) Comments (Positive Attitude and Self-Control',
+	'(Self) Comments (Positive Attitude and Self-Control)',
 	'(Self) Communication',
 	'(Self) Comments (Communication)',
 	'(Self) Additional Comments',
@@ -75,7 +76,8 @@ function pullScoresFromTournaments() {
 
 	rawScoreSheet.clearContents()
 	createColumnHeadings(rawScoreSheet, RAW_SCORE_COLUMN_HEADINGS)
-	let numCols = getFirstEmptyColumn(rawScoreSheet)
+	let numTournamentCols = getFirstEmptyColumn(rawScoreSheet)
+	let numMasterCols = numTournamentCols + 1
 
 	let thisFileId = SpreadsheetApp.getActiveSpreadsheet().getId()
 	let thisFile = DriveApp.getFileById(thisFileId)
@@ -99,10 +101,19 @@ function pullScoresFromTournaments() {
 				}
 				spreadsheetSeen = true
 				let tournamentScoresSheet = SpreadsheetApp.openById(file.getId()).getSheetByName('Raw Scores')
-				let numRows = getFirstEmptyRow(tournamentScoresSheet) - 1
-				let range = tournamentScoresSheet.getRange(2, 1, numRows, numCols)
+				let numRows = getFirstEmptyRow(tournamentScoresSheet) - 2
+				let range = tournamentScoresSheet.getRange(2, 1, numRows, numTournamentCols)
 				let startRow = getFirstEmptyRow(rawScoreSheet)
-				rawScoreSheet.getRange(startRow, 1, numRows, numCols).setValues(range.getValues())
+
+				let values = range.getValues()
+
+				// insert tournament name at index 1 in each row of data.
+				// not ideal to insert a value into a bunch of arrays, but it beats adding the tournament name to the form
+				for (let i = 0; i < values.length; i++) {
+					values[i].splice(1, 0, folderName)
+				}
+
+				rawScoreSheet.getRange(startRow, 1, numRows, numMasterCols).setValues(values)
 			}
 			log(`import succeeded for folder ${folderName}`)
 		} catch (e) {
@@ -267,8 +278,8 @@ function compileTeamAverages(teamData) {
 function compileTeamData(rowData) {
 	teamData = {}
 	for (let row of rowData) {
-		let scoringTeam = row[1]
-		let scoredTeam = row[2]
+		let scoringTeam = row[2]
+		let scoredTeam = row[3]
 
 		if (!teamData.hasOwnProperty(scoringTeam)) {
 			teamData[scoringTeam] = {
@@ -286,16 +297,16 @@ function compileTeamData(rowData) {
 		let score = {
 			time: row[0],
 			opponent: scoringTeam, // this is the 'your team' item in the form because this function returns scores in the perspective of the team being scored
-			day: row[3],
-			round: row[4],
+			day: row[4],
+			round: row[5],
 			comments: {}
 		}
 
 		let self_score = {
 			time: row[0],
 			opponent: scoredTeam, // contrast this with scoringTeam in score object
-			day: row[3],
-			round: row[4],
+			day: row[4],
+			round: row[5],
 			comments: {}
 		}
 
@@ -304,20 +315,21 @@ function compileTeamData(rowData) {
 		let total = 0
 		let selfTotal = 0
 		for (let i = 0; i < numNonTotalKeys; i+=1) {
-			score[SCORE_KEYS[i]] = row[2*i+5]
+			score[SCORE_KEYS[i]] = row[2*i+6]
 
 			// 2: each key has a score and a comment. This is the number of columns created for each key.
-			// 5: number of hardcoded columns before scores (i.e. timestamp, team name, opponent name, day, round)
-			self_score[SCORE_KEYS[i]] = row[2*i + 5 + selfScoreOffset]
-			total += row[2*i+5]
-			selfTotal += row[2*i + 5 + selfScoreOffset]
-			score.comments[SCORE_KEYS[i]] = row[2*i+6]
-			self_score.comments[SCORE_KEYS[i]] = row[2*i + 6 + selfScoreOffset]
+			// 6: number of hardcoded columns before scores (i.e. timestamp, tournament, team name, opponent name, day, round)
+			// TODO: stop hardcoding this
+			self_score[SCORE_KEYS[i]] = row[2*i + 6 + selfScoreOffset]
+			total += row[2*i+6]
+			selfTotal += row[2*i + 6 + selfScoreOffset]
+			score.comments[SCORE_KEYS[i]] = row[2*i+7]
+			self_score.comments[SCORE_KEYS[i]] = row[2*i + 7 + selfScoreOffset]
 		}
 		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
 		self_score[SCORE_KEYS[SCORE_KEYS.length-1]] = selfTotal
-		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 5]; // additional comments
-		self_score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 5 + selfScoreOffset]; // self additional comments
+		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 6]; // additional comments
+		self_score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 6 + selfScoreOffset]; // self additional comments
 
 		teamData[scoredTeam].scores.push(score)
 		teamData[scoringTeam].self_scores.push(self_score)

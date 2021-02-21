@@ -22,7 +22,7 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'(Self) Fair Mindedness',
 	'(Self) Comments (Fair Mindedness)',
 	'(Self) Positive Attitude and Self-Control',
-	'(Self) Comments (Positive Attitude and Self-Control',
+	'(Self) Comments (Positive Attitude and Self-Control)',
 	'(Self) Communication',
 	'(Self) Comments (Communication)',
 	'(Self) Additional Comments',
@@ -131,7 +131,7 @@ function linkSheetToForm(form, spr, responseSheetName, responseColumnHeadings) {
 			sheet.setName(responseSheetName)
 			if (responseColumnHeadings) {
 				let numCols = responseColumnHeadings.length
-				sheet.getRange(1, 1, 1, numCols).setValues([responseColumnHeadings]) // TODO: make column headings appear in tournament form
+				sheet.getRange(1, 1, 1, numCols).setValues([responseColumnHeadings])
 			}
 			break
 		}
