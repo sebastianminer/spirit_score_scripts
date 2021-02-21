@@ -314,7 +314,7 @@ function compileTeamData(rowData) {
 		let selfScoreOffset = 2*numNonTotalKeys + 1; // offset number of columns between a score and its corresponding self-score
 		let total = 0
 		let selfTotal = 0
-		for (let i = 0; i < numNonTotalKeys; i+=1) {
+		for (let i = 0; i < numNonTotalKeys; i++) {
 			score[SCORE_KEYS[i]] = row[2*i+6]
 
 			// 2: each key has a score and a comment. This is the number of columns created for each key.
