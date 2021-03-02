@@ -132,11 +132,6 @@ function pullScoresFromTournaments() {
 	}
 }
 
-function getControlPanelIds(bankSheet) {
-	let rows = getFirstEmptyRow(bankSheet)
-	return bankSheet.getRange('A:A').getValues().map(row => row[0]).filter(id => id.trim() != '')
-}
-
 function aggregateScores() {
 	log('running aggregateScores()')
 	let controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel')
