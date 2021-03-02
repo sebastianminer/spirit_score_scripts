@@ -28,6 +28,46 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 	'(Self) Comments (Communication)',
 	'(Self) Additional Comments'
 ]
+const RAW_SCORE_COLUMN_HEADINGS = [
+	'Timestamp',
+	'Your Team Name',
+	'Opponent Team Name',
+	'Date',
+	'Round',
+	'Rules Knowledge and Use',
+	'Comments (Rules Knowledge and Use)',
+	'(Self) Rules Knowledge and Use',
+	'(Self) Comments (Rules Knowledge and Use)',
+	'Fouls and Body Contact',
+	'Comments (Fouls and Body Contact)',
+	'(Self) Fouls and Body Contact',
+	'(Self) Comments (Fouls and Body Contact)',
+	'Fair Mindedness',
+	'Comments (Fair Mindedness)',
+	'(Self) Fair Mindedness',
+	'(Self) Comments (Fair Mindedness)',
+	'Positive Attitude and Self-Control',
+	'Comments (Positive Attitude and Self-Control',
+	'(Self) Positive Attitude and Self-Control',
+	'(Self) Comments (Positive Attitude and Self-Control)',
+	'Communication',
+	'Comments (Communication)',
+	'(Self) Communication',
+	'(Self) Comments (Communication)',
+	'Additional Comments',
+	'(Self) Additional Comments'
+]
+
+const RAW_SCORE_ENUM = RAW_SCORE_COLUMN_HEADINGS
+	.map((heading, index) => ({ [heading]: index }))
+	.reduce((previous, current) => ({ ...previous, ...current }), {})
+
+// each category has a score and a comment for both the scoring team and the scored team. This is the number of columns created for each key.
+const COLUMNS_PER_CATEGORY = 4
+
+// number of hardcoded columns before scores (i.e. timestamp, team name, opponent name, date, round)
+const NUM_INITIAL_COLUMNS = 5
+
 let errno = 0
 
 function updateForm() {
@@ -122,12 +162,12 @@ function addConditionalFormatting(sheet) {
 		.build()
 	let sixRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
-		.whenFormulaSatisfied('=AND(SUM($F2,$H2,$J2,$L2,$N2) <= 6, $A2 <> "")')
+		.whenFormulaSatisfied('=AND(SUM($F2,$J2,$N2,$R2,$V2) <= 6, $A2 <> "")')
 		.setBackground('#FCE8B2')
 		.build()
 	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
-		.whenFormulaSatisfied('=AND(SUM($F2,$H2,$J2,$L2,$N2) >= 14, $A2 <> "")')
+		.whenFormulaSatisfied('=AND(SUM($F2,$J2,$N2,$R2,$V2) >= 14, $A2 <> "")')
 		.setBackground('#B7E1CD')
 		.build()
 	sheet.setConditionalFormatRules([zeroRule, fourRule, sixRule, fourteenRule])
@@ -148,8 +188,11 @@ function getRowData(sheet, numColumns) {
 function compileTeamData(rowData) {
 	teamData = {}
 	for (let row of rowData) {
-		let scoringTeam = row[1]
-		let scoredTeam = row[2]
+		let scoringTeam = row[RAW_SCORE_ENUM['Your Team Name']]
+		let scoredTeam = row[RAW_SCORE_ENUM['Opponent Team Name']]
+		let time = row[RAW_SCORE_ENUM['Timestamp']]
+		let date = row[RAW_SCORE_ENUM['Date']]
+		let round = row[RAW_SCORE_ENUM['Round']]
 
 		if (!teamData.hasOwnProperty(scoringTeam)) {
 			teamData[scoringTeam] = {
@@ -165,41 +208,37 @@ function compileTeamData(rowData) {
 		}
 
 		let score = {
-			time: row[0],
+			time,
 			opponent: scoringTeam, // this is the 'your team' item in the form because this function returns scores in the perspective of the team being scored
-			day: row[3],
-			round: row[4],
+			date,
+			round,
 			comments: {}
 		}
 
 		let self_score = {
-			time: row[0],
+			time,
 			opponent: scoredTeam, // contrast this with scoringTeam in score object
-			day: row[3],
-			round: row[4],
+			date,
+			round,
 			comments: {}
 		}
 
 		let numNonTotalKeys = SCORE_KEYS.length - 1
-		let selfScoreOffset = 2*numNonTotalKeys + 1; // offset number of columns between a score and its corresponding self-score
 		let total = 0
 		let selfTotal = 0
-		for (let i = 0; i < numNonTotalKeys; i++) {
-			score[SCORE_KEYS[i]] = row[2*i+5]
 
-			// 2: each key has a score and a comment. This is the number of columns created for each key.
-			// 5: number of hardcoded columns before scores (i.e. timestamp, team name, opponent name, day, round)
-			// TODO: stop hardcoding this
-			self_score[SCORE_KEYS[i]] = row[2*i + 5 + selfScoreOffset]
-			total += row[2*i+5]
-			selfTotal += row[2*i + 5 + selfScoreOffset]
-			score.comments[SCORE_KEYS[i]] = row[2*i+6]
-			self_score.comments[SCORE_KEYS[i]] = row[2*i + 6 + selfScoreOffset]
+		for (let i = 0; i < numNonTotalKeys; i++) {
+			score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS]
+			self_score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 2]
+			total += score[SCORE_KEYS[i]]
+			selfTotal += self_score[SCORE_KEYS[i]]
+			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 1]
+			self_score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 3]
 		}
 		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
 		self_score[SCORE_KEYS[SCORE_KEYS.length-1]] = selfTotal
-		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 5]; // additional comments
-		self_score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 5 + selfScoreOffset]; // self additional comments
+		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS]; // additional comments
+		self_score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS + 1]; // self additional comments
 
 		teamData[scoredTeam].scores.push(score)
 		teamData[scoringTeam].self_scores.push(self_score)

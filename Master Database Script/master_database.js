@@ -33,31 +33,43 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Tournament', // note: not present in RAW_SCORE_COLUMN_HEADINGS in form_factory_control_panel.js
 	'Your Team Name',
 	'Opponent Team Name',
-	'Day',
+	'Date',
 	'Round',
 	'Rules Knowledge and Use',
 	'Comments (Rules Knowledge and Use)',
-	'Fouls and Body Contact',
-	'Comments (Fouls and Body Contact)',
-	'Fair Mindedness',
-	'Comments (Fair Mindedness)',
-	'Positive Attitude and Self-Control',
-	'Comments (Positive Attitude and Self-Control',
-	'Communication',
-	'Comments (Communication)',
-	'Additional Comments',
 	'(Self) Rules Knowledge and Use',
 	'(Self) Comments (Rules Knowledge and Use)',
+	'Fouls and Body Contact',
+	'Comments (Fouls and Body Contact)',
 	'(Self) Fouls and Body Contact',
 	'(Self) Comments (Fouls and Body Contact)',
+	'Fair Mindedness',
+	'Comments (Fair Mindedness)',
 	'(Self) Fair Mindedness',
 	'(Self) Comments (Fair Mindedness)',
+	'Positive Attitude and Self-Control',
+	'Comments (Positive Attitude and Self-Control',
 	'(Self) Positive Attitude and Self-Control',
 	'(Self) Comments (Positive Attitude and Self-Control)',
+	'Communication',
+	'Comments (Communication)',
 	'(Self) Communication',
 	'(Self) Comments (Communication)',
-	'(Self) Additional Comments',
+	'Additional Comments',
+	'(Self) Additional Comments'
 ]
+
+const RAW_SCORE_ENUM = RAW_SCORE_COLUMN_HEADINGS
+	.map((heading, index) => ({ [heading]: index }))
+	.reduce((previous, current) => ({ ...previous, ...current }), {})
+
+
+// each key has a score and a comment for both the scoring team and the scored team. This is the number of columns created for each key.
+const COLUMNS_PER_CATEGORY = 4
+
+// number of hardcoded columns before scores (i.e. timestamp, tournament, team name, opponent name, date, round)
+const NUM_INITIAL_COLUMNS = 6
+
 let errno = 0
 
 function pullScoresFromTournaments() {
@@ -293,8 +305,11 @@ function compileTeamAverages(teamData) {
 function compileTeamData(rowData) {
 	teamData = {}
 	for (let row of rowData) {
-		let scoringTeam = row[2]
-		let scoredTeam = row[3]
+		let scoringTeam = row[RAW_SCORE_ENUM['Your Team Name']]
+		let scoredTeam = row[RAW_SCORE_ENUM['Opponent Team Name']]
+		let time = row[RAW_SCORE_ENUM['Timestamp']]
+		let date = row[RAW_SCORE_ENUM['Date']]
+		let round = row[RAW_SCORE_ENUM['Round']]
 
 		if (!teamData.hasOwnProperty(scoringTeam)) {
 			teamData[scoringTeam] = {
@@ -310,41 +325,37 @@ function compileTeamData(rowData) {
 		}
 
 		let score = {
-			time: row[0],
+			time,
 			opponent: scoringTeam, // this is the 'your team' item in the form because this function returns scores in the perspective of the team being scored
-			day: row[4],
-			round: row[5],
+			date,
+			round,
 			comments: {}
 		}
 
 		let self_score = {
-			time: row[0],
+			time,
 			opponent: scoredTeam, // contrast this with scoringTeam in score object
-			day: row[4],
-			round: row[5],
+			date,
+			round,
 			comments: {}
 		}
 
 		let numNonTotalKeys = SCORE_KEYS.length - 1
-		let selfScoreOffset = 2*numNonTotalKeys + 1; // offset number of columns between a score and its corresponding self-score
 		let total = 0
 		let selfTotal = 0
-		for (let i = 0; i < numNonTotalKeys; i++) {
-			score[SCORE_KEYS[i]] = row[2*i+6]
 
-			// 2: each key has a score and a comment. This is the number of columns created for each key.
-			// 6: number of hardcoded columns before scores (i.e. timestamp, tournament, team name, opponent name, day, round)
-			// TODO: stop hardcoding this
-			self_score[SCORE_KEYS[i]] = row[2*i + 6 + selfScoreOffset]
-			total += row[2*i+6]
-			selfTotal += row[2*i + 6 + selfScoreOffset]
-			score.comments[SCORE_KEYS[i]] = row[2*i+7]
-			self_score.comments[SCORE_KEYS[i]] = row[2*i + 7 + selfScoreOffset]
+		for (let i = 0; i < numNonTotalKeys; i++) {
+			score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS]
+			self_score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 2]
+			total += score[SCORE_KEYS[i]]
+			selfTotal += self_score[SCORE_KEYS[i]]
+			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 1]
+			self_score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 3]
 		}
 		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
 		self_score[SCORE_KEYS[SCORE_KEYS.length-1]] = selfTotal
-		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 6]; // additional comments
-		self_score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*2 + 6 + selfScoreOffset]; // self additional comments
+		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS]; // additional comments
+		self_score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS + 1]; // self additional comments
 
 		teamData[scoredTeam].scores.push(score)
 		teamData[scoringTeam].self_scores.push(self_score)
