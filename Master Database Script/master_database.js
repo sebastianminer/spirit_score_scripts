@@ -47,10 +47,10 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Comments (Fair Mindedness)',
 	'(Self) Fair Mindedness',
 	'(Self) Comments (Fair Mindedness)',
-	'Positive Attitude and Self-Control',
-	'Comments (Positive Attitude and Self-Control',
-	'(Self) Positive Attitude and Self-Control',
-	'(Self) Comments (Positive Attitude and Self-Control)',
+	'Attitude',
+	'Comments (Attitude)',
+	'(Self) Attitude',
+	'(Self) Comments (Attitude)',
 	'Communication',
 	'Comments (Communication)',
 	'(Self) Communication',
@@ -63,8 +63,7 @@ const RAW_SCORE_ENUM = RAW_SCORE_COLUMN_HEADINGS
 	.map((heading, index) => ({ [heading]: index }))
 	.reduce((previous, current) => ({ ...previous, ...current }), {})
 
-
-// each key has a score and a comment for both the scoring team and the scored team. This is the number of columns created for each key.
+// each category has a score and a comment for both the scoring team and the scored team. This is the number of columns created for each key.
 const COLUMNS_PER_CATEGORY = 4
 
 // number of hardcoded columns before scores (i.e. timestamp, tournament, team name, opponent name, date, round)
