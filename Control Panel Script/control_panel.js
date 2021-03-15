@@ -110,16 +110,20 @@ function aggregateScores() {
 
 function colorFormattingButtonClick() {
 	log('running colorFormattingButtonClick()')
+	addColorFormatting()
+	log('colorFormattingButtonClick() success!')
+}
+
+function addColorFormatting() {
 	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 	if (sheet) {
 		addConditionalFormatting(sheet)
 		addDuplicateFormatting(sheet)
 	}
-	log('colorFormattingButtonClick() success!')
 }
 
-function sortScores() {
-	log('running sortScores()')
+function sortAggregateScoreSheet() {
+	log('running sortAggregateScoreSheet()')
 	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
 	let numColumns = TEAM_DATA_COLUMN_HEADINGS.length
 	let numRows = getFirstEmptyRow(teamDataSheet) - 2
@@ -130,7 +134,20 @@ function sortScores() {
 	})
 	let winnerRange = teamDataSheet.getRange(2, 1, 1, numColumns)
 	winnerRange.setBackground('#B7E1CD')
-	log('sortScores() success!')
+	log('sortAggregateScoreSheet() success!')
+}
+
+function sortRawScoreSheet() {
+	log('running sortRawScoreSheet()')
+	let rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
+	let numColumns = RAW_SCORE_COLUMN_HEADINGS.length
+	let numRows = getFirstEmptyRow(rawScoreSheet)
+	let range = rawScoreSheet.getRange(2, 1, numRows, numColumns)
+	range.sort({
+		column: 1,
+	})
+	addColorFormatting()
+	log('sortRawScoreSheet() success!')
 }
 
 function addDuplicateFormatting(sheet) {
