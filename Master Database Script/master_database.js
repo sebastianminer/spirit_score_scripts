@@ -176,6 +176,77 @@ function sortScores() {
 	log('sortScores() success!')
 }
 
+function colorFormattingButtonClick() {
+	log('running colorFormattingButtonClick()')
+	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
+	if (sheet) {
+		addConditionalFormatting(sheet)
+		addDuplicateFormatting(sheet)
+	}
+	log('colorFormattingButtonClick() success!')
+}
+
+function addDuplicateFormatting(sheet) {
+	let numRows = getFirstEmptyRow(sheet) - 2
+	let numCols = RAW_SCORE_COLUMN_HEADINGS.length
+	let range = sheet.getRange(2, 1, numRows, numCols)
+	let rows = range.getValues()
+	let possibleDuplicates = {}
+	rows.forEach((row, index) => {
+		let team = row[RAW_SCORE_ENUM['Your Team Name']]
+		let opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
+		let date = row[RAW_SCORE_ENUM['Date']]
+		let tupleStr = team + opponent + date
+		if (possibleDuplicates[tupleStr]) {
+			possibleDuplicates[tupleStr].push(index)
+		} else {
+			possibleDuplicates[tupleStr] = [index]
+		}
+	})
+	possibleDuplicates = Object.entries(possibleDuplicates)
+		.filter(([key, value]) => value.length > 1)
+		.reduce((cumulativeObj, [key, value]) => ({ ...cumulativeObj, [key]: value }), {})
+
+	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
+	let dateColNum = RAW_SCORE_ENUM['Date'] + 1
+	numCols = dateColNum - teamColNum + 1
+	log(JSON.stringify(possibleDuplicates))
+	Object.keys(possibleDuplicates).forEach(key => {
+		possibleDuplicates[key].forEach(rowIndex => {
+			let rowNum = rowIndex + 2
+			log(rowNum)
+			let range = sheet.getRange(rowNum, teamColNum, 1, numCols)
+			range.clearFormat()
+			range.setBackground('#A8DFFF')
+		})
+	})
+}
+
+function addConditionalFormatting(sheet) {
+	let range = sheet.getRange('A2:AA1000')
+	let zeroRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenNumberEqualTo(0)
+		.setBackground('#F4C7C3')
+		.build()
+	let fourRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenNumberEqualTo(4)
+		.setBackground('#84D6AF')
+		.build()
+	let sixRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenFormulaSatisfied('=AND(SUM($G2,$I2,$K2,$M2,$O2) <= 6, $A2 <> "")')
+		.setBackground('#FCE8B2')
+		.build()
+	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([range])
+		.whenFormulaSatisfied('=AND(SUM($G2,$I2,$K2,$M2,$O2) >= 14, $A2 <> "")')
+		.setBackground('#B7E1CD')
+		.build()
+	sheet.setConditionalFormatRules([zeroRule, fourRule, sixRule, fourteenRule])
+}
+
 function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	let teamAverages = compileTeamAverages(teamData)
 	let teamComments = compileTeamComments(teamData)
