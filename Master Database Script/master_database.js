@@ -85,10 +85,13 @@ function pullScoresFromTournaments() {
 	let controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel')
 	let rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 
-	rawScoreSheet.clearContents()
-	createColumnHeadings(rawScoreSheet, RAW_SCORE_COLUMN_HEADINGS)
-	let numTournamentCols = getFirstEmptyColumn(rawScoreSheet)
+	let numTournamentCols = RAW_SCORE_COLUMN_HEADINGS.length
 	let numMasterCols = numTournamentCols + 1
+	let numMasterRowsForFormatClear = rawScoreSheet.getMaxRows() - 1
+	rawScoreSheet.clearContents()
+	rawScoreSheet.getRange(2, 1, numMasterRowsForFormatClear, numMasterCols).clearFormat()
+
+	createColumnHeadings(rawScoreSheet, RAW_SCORE_COLUMN_HEADINGS)
 
 	let thisFileId = SpreadsheetApp.getActiveSpreadsheet().getId()
 	let thisFile = DriveApp.getFileById(thisFileId)
@@ -112,11 +115,11 @@ function pullScoresFromTournaments() {
 				}
 				spreadsheetSeen = true
 				let tournamentScoresSheet = SpreadsheetApp.openById(file.getId()).getSheetByName('Raw Scores')
-				let numRows = getFirstEmptyRow(tournamentScoresSheet) - 2
-				let range = tournamentScoresSheet.getRange(2, 1, numRows, numTournamentCols)
+				let numSourceRows = getFirstEmptyRow(tournamentScoresSheet) - 2
+				let range = tournamentScoresSheet.getRange(2, 1, numSourceRows, numTournamentCols)
 				let startRow = getFirstEmptyRow(rawScoreSheet)
 
-				let values = range.getValues()
+				let values = range.getValues().filter(row => row[0])
 
 				// insert tournament name at index 1 in each row of data.
 				// not ideal to insert a value into a bunch of arrays, but it beats adding the tournament name to the form
@@ -124,7 +127,8 @@ function pullScoresFromTournaments() {
 					values[i].splice(1, 0, folderName)
 				}
 
-				rawScoreSheet.getRange(startRow, 1, numRows, numMasterCols).setValues(values)
+				let numTargetRows = values.length
+				rawScoreSheet.getRange(startRow, 1, numTargetRows, numMasterCols).setValues(values)
 			}
 			log(`import succeeded for folder ${folderName}`)
 		} catch (e) {
@@ -204,17 +208,15 @@ function addDuplicateFormatting(sheet) {
 		}
 	})
 	possibleDuplicates = Object.entries(possibleDuplicates)
-		.filter(([key, value]) => value.length > 1)
+		.filter(([key, value]) => key && value.length > 1)
 		.reduce((cumulativeObj, [key, value]) => ({ ...cumulativeObj, [key]: value }), {})
 
 	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
 	let dateColNum = RAW_SCORE_ENUM['Date'] + 1
 	numCols = dateColNum - teamColNum + 1
-	log(JSON.stringify(possibleDuplicates))
 	Object.keys(possibleDuplicates).forEach(key => {
 		possibleDuplicates[key].forEach(rowIndex => {
 			let rowNum = rowIndex + 2
-			log(rowNum)
 			let range = sheet.getRange(rowNum, teamColNum, 1, numCols)
 			range.clearFormat()
 			range.setBackground('#A8DFFF')
@@ -224,6 +226,7 @@ function addDuplicateFormatting(sheet) {
 
 function addConditionalFormatting(sheet) {
 	let range = sheet.getRange('A2:AA1000')
+	range.clearFormat()
 	let zeroRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
 		.whenNumberEqualTo(0)
@@ -435,7 +438,7 @@ function compileTeamData(rowData) {
 
 function getRowData(sheet, numColumns) {
 	let numRows = getFirstEmptyRow(sheet) - 2
-	return sheet.getRange(2, 1, numRows, numColumns).getValues()
+	return sheet.getRange(2, 1, numRows, numColumns).getValues().filter(row => row[0])
 }
 
 function getColumnNames(sheet) {
@@ -461,23 +464,7 @@ function getColumnData(sheet, numColumns) {
 }
 
 function getFirstEmptyRow(sheet) {
-	let column = sheet.getRange('A:A')
-	let values = column.getValues()
-	let ct = 0
-	while (values[ct] && values[ct][0] != '') {
-		ct++
-	}
-	return (ct+1)
-}
-
-function getFirstEmptyColumn(sheet) {
-	let row = sheet.getRange('1:1')
-	let values = row.getValues()
-	let ct = 0
-	while (values[0][ct] && values[0][ct] != '') {
-		ct++
-	}
-	return (ct+1)
+	return sheet.getLastRow() + 1
 }
 
 function formatDate(date) {

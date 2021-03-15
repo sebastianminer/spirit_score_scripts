@@ -151,17 +151,15 @@ function addDuplicateFormatting(sheet) {
 		}
 	})
 	possibleDuplicates = Object.entries(possibleDuplicates)
-		.filter(([key, value]) => value.length > 1)
+		.filter(([key, value]) => key && value.length > 1)
 		.reduce((cumulativeObj, [key, value]) => ({ ...cumulativeObj, [key]: value }), {})
 
 	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
 	let dateColNum = RAW_SCORE_ENUM['Date'] + 1
 	numCols = dateColNum - teamColNum + 1
-	log(JSON.stringify(possibleDuplicates))
 	Object.keys(possibleDuplicates).forEach(key => {
 		possibleDuplicates[key].forEach(rowIndex => {
 			let rowNum = rowIndex + 2
-			log(rowNum)
 			let range = sheet.getRange(rowNum, teamColNum, 1, numCols)
 			range.clearFormat()
 			range.setBackground('#A8DFFF')
@@ -171,6 +169,7 @@ function addDuplicateFormatting(sheet) {
 
 function addConditionalFormatting(sheet) {
 	let range = sheet.getRange('A2:AA1000')
+	range.clearFormat()
 	let zeroRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
 		.whenNumberEqualTo(0)
@@ -202,7 +201,7 @@ function getColumnNames(sheet) {
 
 function getRowData(sheet, numColumns) {
 	let numRows = getFirstEmptyRow(sheet) - 2
-	return sheet.getRange(2, 1, numRows, numColumns).getValues()
+	return sheet.getRange(2, 1, numRows, numColumns).getValues().filter(row => row[0])
 }
 
 // return an object containing each team's scores received
@@ -475,13 +474,7 @@ function copyResponseToSheet(response, sheet) {
 }
 
 function getFirstEmptyRow(sheet) {
-	let column = sheet.getRange('A:A')
-	let values = column.getValues()
-	let ct = 0
-	while (values[ct] && values[ct][0] != '') {
-		ct++
-	}
-	return (ct+1)
+	return sheet.getLastRow() + 1
 }
 
 function setListItemChoices(listItem, arr) {
