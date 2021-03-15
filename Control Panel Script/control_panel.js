@@ -141,11 +141,48 @@ function sortScores() {
 }
 
 // it's necessary to force conditional formatting on edit because cells edited by a form submission have their conditional formatting cleared
-function onEdit(e) {
+function onEdit(e) { // TODO: should this really be done automatically, or just on a button click?
 	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 	if (sheet) {
 		addConditionalFormatting(sheet)
+		addDuplicateFormatting(sheet)
 	}
+}
+
+function addDuplicateFormatting(sheet) {
+	let numRows = getFirstEmptyRow(sheet) - 2
+	let numCols = RAW_SCORE_COLUMN_HEADINGS.length
+	let range = sheet.getRange(2, 1, numRows, numCols)
+	let rows = range.getValues()
+	let possibleDuplicates = {}
+	rows.forEach((row, index) => {
+		let team = row[RAW_SCORE_ENUM['Your Team Name']]
+		let opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
+		let date = row[RAW_SCORE_ENUM['Date']]
+		let tupleStr = team + opponent + date
+		if (possibleDuplicates[tupleStr]) {
+			possibleDuplicates[tupleStr].push(index)
+		} else {
+			possibleDuplicates[tupleStr] = [index]
+		}
+	})
+	possibleDuplicates = Object.entries(possibleDuplicates)
+		.filter(([key, value]) => value.length > 1)
+		.reduce((cumulativeObj, [key, value]) => ({ ...cumulativeObj, [key]: value }), {})
+
+	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
+	let dateColNum = RAW_SCORE_ENUM['Date'] + 1
+	numCols = dateColNum - teamColNum + 1
+	log(JSON.stringify(possibleDuplicates))
+	Object.keys(possibleDuplicates).forEach(key => {
+		possibleDuplicates[key].forEach(rowIndex => {
+			let rowNum = rowIndex + 2
+			log(rowNum)
+			let range = sheet.getRange(rowNum, teamColNum, 1, numCols)
+			range.clearFormat()
+			range.setBackground('#A8DFFF')
+		})
+	})
 }
 
 function addConditionalFormatting(sheet) {
