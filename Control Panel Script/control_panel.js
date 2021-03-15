@@ -110,18 +110,11 @@ function aggregateScores() {
 
 function colorFormattingButtonClick() {
 	log('running colorFormattingButtonClick()')
-	onEdit(null)
-
-	let spr = SpreadsheetApp.getActiveSpreadsheet()
-	let triggers = ScriptApp.getUserTriggers(spr)
-	for (let i = 0; i < triggers.length; i++) {
-		let eventType = triggers[i].getEventType()
-		let handlerFunction = triggers[i].getHandlerFunction()
-		if (eventType === ScriptApp.EventType.ON_EDIT && handlerFunction === 'onEdit') {
-			return
-		}
+	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
+	if (sheet) {
+		addConditionalFormatting(sheet)
+		addDuplicateFormatting(sheet)
 	}
-	ScriptApp.newTrigger('onEdit').forSpreadsheet(spr).onEdit().create()
 	log('colorFormattingButtonClick() success!')
 }
 
@@ -138,15 +131,6 @@ function sortScores() {
 	let winnerRange = teamDataSheet.getRange(2, 1, 1, numColumns)
 	winnerRange.setBackground('#B7E1CD')
 	log('sortScores() success!')
-}
-
-// it's necessary to force conditional formatting on edit because cells edited by a form submission have their conditional formatting cleared
-function onEdit(e) { // TODO: should this really be done automatically, or just on a button click?
-	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
-	if (sheet) {
-		addConditionalFormatting(sheet)
-		addDuplicateFormatting(sheet)
-	}
 }
 
 function addDuplicateFormatting(sheet) {
