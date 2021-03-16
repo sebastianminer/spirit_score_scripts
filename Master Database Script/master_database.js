@@ -13,20 +13,7 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 	'Comments (Fair Mindedness)',
 	'Comments (Positive Attitude and Self-Control)',
 	'Comments (Communication)',
-	'Additional Comments',
-	'(Self) Number of Scores',
-	'(Self) Total',
-	'(Self) Rules Knowledge and Use',
-	'(Self) Fouls and Body Contact',
-	'(Self) Fair Mindedness',
-	'(Self) Positive Attitude and Self-Control',
-	'(Self) Communication',
-	'(Self) Comments (Rules Knowledge and Use)',
-	'(Self) Comments (Fouls and Body Contact)',
-	'(Self) Comments (Fair Mindedness)',
-	'(Self) Comments (Positive Attitude and Self-Control)',
-	'(Self) Comments (Communication)',
-	'(Self) Additional Comments'
+	'Additional Comments'
 ]
 const RAW_SCORE_COLUMN_HEADINGS = [
 	'Timestamp',
@@ -278,32 +265,19 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	sortedTeamList.forEach(function(team, index) {
 		scores[index] = [
 			team,
-			teamData[team].scores.length,
-			teamAverages[team].scores.total,
-			teamAverages[team].scores.rules,
-			teamAverages[team].scores.fouls,
-			teamAverages[team].scores.fairMind,
-			teamAverages[team].scores.attitude,
-			teamAverages[team].scores.communication,
-			JSON.stringify(teamComments[team].comments.rules),
-			JSON.stringify(teamComments[team].comments.fouls),
-			JSON.stringify(teamComments[team].comments.fairMind),
-			JSON.stringify(teamComments[team].comments.attitude),
-			JSON.stringify(teamComments[team].comments.communication),
-			JSON.stringify(teamComments[team].comments.total),
-			teamData[team].self_scores.length,
-			teamAverages[team].self_scores.total,
-			teamAverages[team].self_scores.rules,
-			teamAverages[team].self_scores.fouls,
-			teamAverages[team].self_scores.fairMind,
-			teamAverages[team].self_scores.attitude,
-			teamAverages[team].self_scores.communication,
-			JSON.stringify(teamComments[team].self_comments.rules),
-			JSON.stringify(teamComments[team].self_comments.fouls),
-			JSON.stringify(teamComments[team].self_comments.fairMind),
-			JSON.stringify(teamComments[team].self_comments.attitude),
-			JSON.stringify(teamComments[team].self_comments.communication),
-			JSON.stringify(teamComments[team].self_comments.total)
+			teamData[team].length,
+			teamAverages[team].total,
+			teamAverages[team].rules,
+			teamAverages[team].fouls,
+			teamAverages[team].fairMind,
+			teamAverages[team].attitude,
+			teamAverages[team].communication,
+			JSON.stringify(teamComments[team].rules),
+			JSON.stringify(teamComments[team].fouls),
+			JSON.stringify(teamComments[team].fairMind),
+			JSON.stringify(teamComments[team].attitude),
+			JSON.stringify(teamComments[team].communication),
+			JSON.stringify(teamComments[team].total)
 		]
 	})
 	let range = teamDataSheet.getRange(2, 1, numRows, numColumns)
@@ -318,34 +292,19 @@ function createColumnHeadings(sheet, columnHeadings) {
 function compileTeamComments(teamData) {
 	let teamComments = {}
 	for (let team of Object.keys(teamData)) {
-		teamComments[team] = {
-			comments: {},
-			self_comments: {}
-		}
+		teamComments[team] = {}
 		for (commentCategory of SCORE_KEYS) {
-			teamComments[team].comments[commentCategory] = []
-			teamComments[team].self_comments[commentCategory] = []
+			teamComments[team][commentCategory] = []
 		}
 
-		let comments = teamData[team].scores.map(function(score) {
+		let comments = teamData[team].map(function(score) {
 			return score.comments
-		})
-		let self_comments = teamData[team].self_scores.map(function(self_score) {
-			return self_score.comments
 		})
 
 		for (let row of comments) {
 			for (let commentCategory of Object.keys(row)) {
 				if (row[commentCategory] && row[commentCategory].trim() != '') {
-					teamComments[team].comments[commentCategory].push(row[commentCategory])
-				}
-			}
-		}
-
-		for (let row of self_comments) {
-			for (let commentCategory of Object.keys(row)) {
-				if (row[commentCategory] && row[commentCategory].trim() != '') {
-					teamComments[team].self_comments[commentCategory].push(row[commentCategory])
+					teamComments[team][commentCategory].push(row[commentCategory])
 				}
 			}
 		}
@@ -356,36 +315,31 @@ function compileTeamComments(teamData) {
 function compileTeamAverages(teamData) {
 	let averages = {}
 	for (let team of Object.keys(teamData)) {
-		averages[team] = {
-			scores: {},
-			self_scores: {}
+		averages[team] = {}
+
+		let numScores = teamData[team].length
+		let scoresTotal = {}
+		for (let key of SCORE_KEYS) {
+			scoresTotal[key] = 0
+		}
+		for (let score of teamData[team]) {
+			for (key of Object.keys(scoresTotal)) {
+				scoresTotal[key] += score[key]
+			}
 		}
 
-		for (let direction of ['scores', 'self_scores']) {
-			let numScores = teamData[team][direction].length
-			let scoresTotal = {}
-			for (let key of SCORE_KEYS) {
-				scoresTotal[key] = 0
-			}
-			for (let score of teamData[team][direction]) {
-				for (key of Object.keys(scoresTotal)) {
-					scoresTotal[key] += score[key]
-				}
-			}
-
-			for (let key of Object.keys(scoresTotal)) {
-				if (!numScores) {
-					if (key === 'total') {
-						scoresTotal[key] = 0
-					} else {
-						scoresTotal[key] = '-'
-					}
+		for (let key of Object.keys(scoresTotal)) {
+			if (!numScores) {
+				if (key === 'total') {
+					scoresTotal[key] = 0
 				} else {
-					scoresTotal[key] /= numScores
+					scoresTotal[key] = '-'
 				}
+			} else {
+				scoresTotal[key] /= numScores
 			}
-			averages[team][direction] = scoresTotal
 		}
+		averages[team] = scoresTotal
 	}
 
 	return averages
@@ -402,16 +356,10 @@ function compileTeamData(rowData) {
 		let round = row[RAW_SCORE_ENUM['Round']]
 
 		if (!teamData.hasOwnProperty(scoringTeam)) {
-			teamData[scoringTeam] = {
-				scores: [],
-				self_scores: []
-			}
+			teamData[scoringTeam] = []
 		}
 		if (!teamData.hasOwnProperty(scoredTeam)) {
-			teamData[scoredTeam] = {
-				scores: [],
-				self_scores: []
-			}
+			teamData[scoredTeam] = []
 		}
 
 		let score = {
@@ -422,33 +370,18 @@ function compileTeamData(rowData) {
 			comments: {}
 		}
 
-		let self_score = {
-			time,
-			opponent: scoredTeam, // contrast this with scoringTeam in score object
-			date,
-			round,
-			comments: {}
-		}
-
 		let numNonTotalKeys = SCORE_KEYS.length - 1
 		let total = 0
-		let selfTotal = 0
 
 		for (let i = 0; i < numNonTotalKeys; i++) {
 			score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS]
-			self_score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 2]
 			total += score[SCORE_KEYS[i]]
-			selfTotal += self_score[SCORE_KEYS[i]]
 			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 1]
-			self_score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 3]
 		}
 		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
-		self_score[SCORE_KEYS[SCORE_KEYS.length-1]] = selfTotal
 		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS]; // additional comments
-		self_score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS + 1]; // self additional comments
 
-		teamData[scoredTeam].scores.push(score)
-		teamData[scoringTeam].self_scores.push(self_score)
+		teamData[scoredTeam].push(score)
 	}
 	return teamData
 }
