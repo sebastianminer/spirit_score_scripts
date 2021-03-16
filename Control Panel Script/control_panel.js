@@ -407,111 +407,12 @@ function createColumnHeadings(sheet, columnHeadings) {
 	sheet.getRange(`R1C1:R1C${numColumns}`).setValues([columnHeadings])
 }
 
-function initializeForm() {
-	log('running initializeForm()')
-	let spr = SpreadsheetApp.getActiveSpreadsheet()
-	shareSpreadsheet(spr)
-	let formURL = spr.getRange('B2').getValue()
-	let form = FormApp.openByUrl(formURL)
-	linkSheetToForm(form, spr)
-
-	let bankUrl = spr.getRange('B3').getValue()
-	linkSheetToBank(bankUrl, spr)
-
-	if (errno) {
-		log('initializeForm() completed with one or more errors.')
-	} else {
-		log('initializeForm() success!')
-	}
-}
-
-function linkSheetToBank(bankUrl, spr) {
-	let bankSheet = SpreadsheetApp.openByUrl(bankUrl).getSheetByName('Tournament Control Panel IDs')
-	let tournamentSheetId = spr.getId()
-	if (sheetIdInBank(tournamentSheetId, bankSheet)) {
-		return
-	}
-	let row = getFirstEmptyRow(bankSheet)
-	bankSheet.getRange(row, 1).setValue(tournamentSheetId)
-}
-
-function sheetIdInBank(tournamentSheetId, bankSheet) {
-	let existingIds = new Set(bankSheet.getRange('A:A').getValues().map(row => row[0]).filter(id => id.trim() != ''))
-	return existingIds.has(tournamentSheetId)
-}
-
-function shareSpreadsheet(spr) {
-	let emails = getEmailAddresses(spr)
-	let spreadsheetId = spr.getId()
-	for (email of emails) {
-		try {
-			DriveApp.getFileById(spreadsheetId).addViewer(email)
-			log(`File successfully shared with ${email}.`)
-		} catch (e) {
-			log(`Error sharing with ${email}. ${e.name}: ${e.message}`)
-			errno |= 1
-		}
-	}
-}
-
-function getEmailAddresses(spr) {
-	let controlPanelSheet = spr.getSheetByName('Control Panel')
-	let values = controlPanelSheet.getRange('E:E').getValues().map(row => row[0]).slice(1)
-	let emails = values.filter(value => value && value.trim() != '')
-	return emails
-}
-
-function linkSheetToForm(form, spr) {
-	let formDestId
-	try {
-		formDestId = form.getDestinationId()
-	}
-	catch (e) {
-		formDestId = null
-	}
-	if (formDestId != spr.getId()) {
-		form.setDestination(FormApp.DestinationType.SPREADSHEET, spr.getId())
-	}
-	SpreadsheetApp.flush()
-	for (sheet of spr.getSheets()) {
-		if (sheet.getFormUrl() != null) {
-			sheet.setName('Raw Scores')
-			break
-		}
-	}
-}
-
-function copyResponseToSheet(response, sheet) {
-	let itemResponses = response.getItemResponses()
-	let responseLength = itemResponses.length
-	let rawResponses = itemResponses.map(item => item.getResponse())
-	let firstEmptyRow = getFirstEmptyRow(sheet)
-	let range = `R${firstEmptyRow}C1:R${firstEmptyRow}C${responseLength+1}`
-	sheet.getRange(range).setValues([[response.getTimestamp(), ...rawResponses]])
-}
-
 function getFirstEmptyRow(sheet) {
 	return sheet.getLastRow() + 1
 }
 
 function setListItemChoices(listItem, arr) {
 	listItem.setChoices(arr.map(a => listItem.createChoice(a)))
-}
-
-function getItemByTitle(title, form) {
-	let items = form.getItems()
-	for (let item of items) {
-		if (item.getTitle() == title) {
-			return item
-		}
-	}
-	return null
-}
-
-function getTeamsFromDoc(doc_id) {
-	let doc = DocumentApp.openById(doc_id)
-	let html = doc.getBody().getText()
-	return getTeamsFromString(html)
 }
 
 function getTeamsFromURL(url) {

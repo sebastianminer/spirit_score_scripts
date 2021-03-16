@@ -464,22 +464,6 @@ function getColumnNames(sheet) {
 	return values
 }
 
-function getColumnData(sheet, numColumns) {
-	let numRows = getFirstEmptyRow(sheet) - 2
-	let range = sheet.getRange(2, 1, numRows, numColumns)
-	let values = range.getValues()
-	let columns = new Array(numColumns)
-	for (let i = 0; i < numColumns; i++) {
-		columns[i] = new Array(numRows)
-	}
-	values.forEach(function(row, rowIndex) {
-		row.forEach(function(cell, colIndex) {
-			columns[colIndex][rowIndex] = cell
-		})
-	})
-	return columns
-}
-
 function getFirstEmptyRow(sheet) {
 	return sheet.getLastRow() + 1
 }
