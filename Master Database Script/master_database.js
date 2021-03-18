@@ -83,7 +83,8 @@ function pullScoresFromTournaments() {
 	let thisFileId = SpreadsheetApp.getActiveSpreadsheet().getId()
 	let thisFile = DriveApp.getFileById(thisFileId)
 	let parentFolder = thisFile.getParents().next()
-	let tournamentFolders = parentFolder.getFolders()
+	let tournamentsFolder = parentFolder.getFoldersByName('Tournaments').next()
+	let tournamentFolders = tournamentsFolder.getFolders()
 
 	while (tournamentFolders.hasNext()) {
 		let tournamentFolder = tournamentFolders.next()

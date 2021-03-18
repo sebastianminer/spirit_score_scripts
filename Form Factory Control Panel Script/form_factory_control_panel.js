@@ -34,12 +34,14 @@ function onFormSubmit(e) {
 	let thisFileId = SpreadsheetApp.getActiveSpreadsheet().getId()
 	let thisFile = DriveApp.getFileById(thisFileId)
 	let parentFolder = thisFile.getParents().next()
+	createFolder(parentFolder, 'Tournaments')
+	let tournamentsFolder = parentFolder.getFoldersByName('Tournaments').next()
 	let itemResponses = e.response.getItemResponses()
 	let rawResponses = itemResponses.map(item => item.getResponse())
 	let tournamentName = rawResponses[0]
 	let emailResponse = rawResponses[1]
 
-	let tournamentFolder = createFolder(parentFolder, tournamentName)
+	let tournamentFolder = createFolder(tournamentsFolder, tournamentName)
 	let templateFolderContents = getTemplateFolderContents(parentFolder)
 	copyFilesToFolder(templateFolderContents, tournamentFolder)
 	let emails = getEmailsFromResponse(emailResponse)
@@ -110,7 +112,7 @@ function createFolder(parentFolder, name) {
 }
 
 function getTemplateFolderContents(parentFolder) {
-	let templateFolder = parentFolder.getParents().next().getFoldersByName('Tournament Templates').next()
+	let templateFolder = parentFolder.getParents().next().getParents().next().getFoldersByName('Templates (do not edit contents)').next().getFoldersByName('Tournament Templates').next()
 	return templateFolder.getFiles()
 }
 
