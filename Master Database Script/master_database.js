@@ -1,7 +1,8 @@
 const SCORE_KEYS = ['rules', 'fouls', 'fairMind', 'attitude', 'communication', 'total']
 const TEAM_DATA_COLUMN_HEADINGS = [
 	'Team',
-	'Number of Scores',
+	'Number of Scores Submitted',
+	'Number of Scores Received',
 	'Total',
 	'Rules Knowledge and Use',
 	'Fouls and Body Contact',
@@ -160,7 +161,7 @@ function sortAggregateScoreSheet() {
 	let numRows = getFirstEmptyRow(teamDataSheet) - 2
 	let range = teamDataSheet.getRange(2, 1, numRows, numColumns)
 	range.sort({
-		column: 3,
+		column: 4,
 		ascending: false
 	})
 	let winnerRange = teamDataSheet.getRange(2, 1, 1, numColumns)
@@ -266,7 +267,8 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	sortedTeamList.forEach(function(team, index) {
 		scores[index] = [
 			team,
-			teamData[team].length,
+			teamAverages[team].scoresSubmitted,
+			teamAverages[team].scoresReceived,
 			teamAverages[team].total,
 			teamAverages[team].rules,
 			teamAverages[team].fouls,
@@ -315,21 +317,30 @@ function compileTeamComments(teamData) {
 
 function compileTeamAverages(teamData) {
 	let averages = {}
+
+	// initialize averages[team] for each team
 	for (let team of Object.keys(teamData)) {
 		averages[team] = {}
-
-		let numScores = teamData[team].length
-		let scoresTotal = {}
+		averages[team].scoresReceived = teamData[team].length
+		averages[team].scoresSubmitted = 0
 		for (let key of SCORE_KEYS) {
-			scoresTotal[key] = 0
+			averages[team][key] = 0
 		}
+	}
+
+	// set values for each averages[team]
+	for (let team of Object.keys(teamData)) {
+		let scoresTotal = averages[team]
+		let numScores = scoresTotal.scoresReceived
 		for (let score of teamData[team]) {
-			for (key of Object.keys(scoresTotal)) {
+			for (key of SCORE_KEYS) {
 				scoresTotal[key] += score[key]
 			}
+			let scoringTeam = score.opponent
+			averages[scoringTeam].scoresSubmitted++
 		}
 
-		for (let key of Object.keys(scoresTotal)) {
+		for (let key of SCORE_KEYS) {
 			if (!numScores) {
 				if (key === 'total') {
 					scoresTotal[key] = 0
@@ -380,7 +391,7 @@ function compileTeamData(rowData) {
 			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 1]
 		}
 		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
-		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS]; // additional comments
+		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS] // additional comments
 
 		teamData[scoredTeam].push(score)
 	}
