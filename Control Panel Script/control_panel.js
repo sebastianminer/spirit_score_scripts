@@ -3,6 +3,8 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 	'Team',
 	'Number of Scores Submitted',
 	'Number of Scores Received',
+	'Teams Who Need a Score',
+	'Teams from Whom a Score Is Needed',
 	'Total',
 	'Rules Knowledge and Use',
 	'Fouls and Body Contact',
@@ -117,7 +119,7 @@ function sortAggregateScoreSheet() {
 	let numRows = getFirstEmptyRow(teamDataSheet) - 2
 	let range = teamDataSheet.getRange(2, 1, numRows, numColumns)
 	range.sort({
-		column: 4,
+		column: 6,
 		ascending: false
 	})
 	let winnerRange = teamDataSheet.getRange(2, 1, 1, numColumns)
@@ -253,6 +255,8 @@ function compileTeamData(rowData) {
 function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	let teamAverages = compileTeamAverages(teamData)
 	let teamComments = compileTeamComments(teamData)
+	let missedTeams = compileMissedTeams(teamData)
+	log(missedTeams['Copper Hills'].scoresNeededFor)
 	createColumnHeadings(teamDataSheet, TEAM_DATA_COLUMN_HEADINGS)
 	let sortedTeamList = Object.keys(teamAverages).sort()
 	let numRows = sortedTeamList.length
@@ -263,6 +267,8 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 			team,
 			teamAverages[team].scoresSubmitted,
 			teamAverages[team].scoresReceived,
+			missedTeams[team].scoresNeededFor,
+			missedTeams[team].scoresNeededFrom,
 			teamAverages[team].total,
 			teamAverages[team].rules,
 			teamAverages[team].fouls,
@@ -344,6 +350,83 @@ function compileTeamComments(teamData) {
 		}
 	}
 	return teamComments
+}
+
+function compileMissedTeams(teamData) {
+	let opponentQuantities = Object.keys(teamData).reduce((cumulativeObj, teamName) => ({
+			...cumulativeObj,
+			[teamName]: {}
+		}), {}
+	)
+
+	Object.keys(teamData).forEach(teamName => {
+		let teamScores = teamData[teamName]
+		teamScores.forEach(score => {
+			if (!opponentQuantities[teamName][score.opponent]) {
+				opponentQuantities[teamName][score.opponent] = {
+					scoresFor: 0,
+					scoresFrom: 0
+				}
+				opponentQuantities[score.opponent][teamName] = {
+					scoresFor: 0,
+					scoresFrom: 0
+				}
+			}
+			opponentQuantities[score.opponent][teamName].scoresFor++
+			opponentQuantities[teamName][score.opponent].scoresFrom++
+		})
+	})
+
+	let missedTeams = {}
+	Object.keys(teamData).forEach(teamName => {
+		missedTeams[teamName] = {}
+
+		Object.keys(opponentQuantities[teamName]).forEach(opponentName => {
+			let quantity = opponentQuantities[teamName][opponentName]
+			let scoresNeededFor = quantity.scoresFrom - quantity.scoresFor
+			let scoresNeededFrom = -scoresNeededFor
+
+			if (scoresNeededFor) {
+				if (!missedTeams[teamName][opponentName]) {
+					missedTeams[teamName][opponentName] = {
+						scoresNeededFor: 0,
+						scoresNeededFrom: 0
+					}
+				}
+			}
+			if (scoresNeededFor > 0) {
+				missedTeams[teamName][opponentName].scoresNeededFor = scoresNeededFor
+			} else if (scoresNeededFrom > 0) {
+				missedTeams[teamName][opponentName].scoresNeededFrom = scoresNeededFrom
+			}
+		})
+	})
+
+	return getMissedTeamsAsString(missedTeams)
+}
+
+function getMissedTeamsAsString(missedTeamsObj) {
+	let missedTeams = {}
+	Object.keys(missedTeamsObj).forEach(teamName => {
+		missedTeams[teamName] = {
+			scoresNeededFor: '',
+			scoresNeededFrom: ''
+		}
+		Object.keys(missedTeamsObj[teamName]).sort().forEach(opponentName => {
+			let scoresNeededFor = missedTeamsObj[teamName][opponentName].scoresNeededFor
+			let scoresNeededFrom = missedTeamsObj[teamName][opponentName].scoresNeededFrom
+			if (scoresNeededFor) {
+				missedTeams[teamName].scoresNeededFor += `${opponentName} (${scoresNeededFor})\n`
+			} else if (scoresNeededFrom) {
+				missedTeams[teamName].scoresNeededFrom += `${opponentName} (${scoresNeededFrom})\n`
+			}
+		})
+		let scoresNeededFor = missedTeams[teamName].scoresNeededFor
+		let scoresNeededFrom = missedTeams[teamName].scoresNeededFrom
+		missedTeams[teamName].scoresNeededFor = scoresNeededFor.substring(0, scoresNeededFor.length - 1)
+		missedTeams[teamName].scoresNeededFrom = scoresNeededFrom.substring(0, scoresNeededFrom.length - 1)
+	})
+	return missedTeams
 }
 
 function createColumnHeadings(sheet, columnHeadings) {
