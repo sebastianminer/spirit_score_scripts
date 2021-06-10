@@ -175,7 +175,7 @@ function sortRawScoreSheet() {
 	log('running sortRawScoreSheet()')
 	let rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 	let numColumns = RAW_SCORE_COLUMN_HEADINGS.length
-	let numRows = getFirstEmptyRow(rawScoreSheet)
+	let numRows = getFirstEmptyRow(rawScoreSheet) - 2
 	let range = rawScoreSheet.getRange(2, 1, numRows, numColumns)
 	range.sort({
 		column: 1,
