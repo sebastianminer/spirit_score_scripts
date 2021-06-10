@@ -256,7 +256,6 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	let teamAverages = compileTeamAverages(teamData)
 	let teamComments = compileTeamComments(teamData)
 	let missedTeams = compileMissedTeams(teamData)
-	log(missedTeams['Copper Hills'].scoresNeededFor)
 	createColumnHeadings(teamDataSheet, TEAM_DATA_COLUMN_HEADINGS)
 	let sortedTeamList = Object.keys(teamAverages).sort()
 	let numRows = sortedTeamList.length
