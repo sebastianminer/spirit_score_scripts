@@ -140,6 +140,65 @@ function sortRawScoreSheet() {
 	log('sortRawScoreSheet() success!')
 }
 
+function addTotalScoreToRawScoreSheet() {
+	log('running addTotalScoreToRawScoreSheet()')
+	let activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet()
+	let rawScoreSheet = activeSpreadsheet.getSheetByName('Raw Scores')
+	let numRows = getFirstEmptyRow(rawScoreSheet) - 2
+	let numColumns = RAW_SCORE_COLUMN_HEADINGS.length
+	let rowData = getRowDataIncludingEmpty(rawScoreSheet, numColumns)
+	let scoreIndicesInRow = [
+		RAW_SCORE_ENUM['Rules Knowledge and Use'],
+		RAW_SCORE_ENUM['Fouls and Body Contact'],
+		RAW_SCORE_ENUM['Fair Mindedness'],
+		RAW_SCORE_ENUM['Attitude'],
+		RAW_SCORE_ENUM['Communication']
+	]
+	let totals = rowData.map(row => row[0]
+		? scoreIndicesInRow.reduce((sum, index) => sum + row[index], 0)
+		: '')
+	let totalsTransposed = [...totals.map(value => [value])]
+
+	numRows++
+	let rawScoresWithTotalsSheet = activeSpreadsheet.getSheetByName('Raw Scores With Totals')
+	if (rawScoresWithTotalsSheet) {
+		rawScoresWithTotalsSheet.clear()
+	} else {
+		rawScoresWithTotalsSheet = activeSpreadsheet.insertSheet('Raw Scores With Totals')
+	}
+	let totalsColumnIndex = RAW_SCORE_ENUM['Rules Knowledge and Use'] + 1
+	let staticRange = rawScoreSheet.getRange(1, 1, numRows, totalsColumnIndex - 1)
+	let staticTargetRange = rawScoresWithTotalsSheet.getRange(1, 1, numRows, totalsColumnIndex - 1)
+	let rangeToMove = rawScoreSheet.getRange(1, totalsColumnIndex, numRows, numColumns - totalsColumnIndex + 1)
+	let targetRange = rawScoresWithTotalsSheet.getRange(1, totalsColumnIndex + 1, numRows, numColumns - totalsColumnIndex + 1)
+	staticRange.copyTo(staticTargetRange)
+	rangeToMove.copyTo(targetRange)
+
+	rawScoresWithTotalsSheet.getRange(1, totalsColumnIndex).setValue('Total Score')
+	numRows--
+	let totalsColumnRange = rawScoresWithTotalsSheet.getRange(2, totalsColumnIndex, numRows, 1)
+	totalsColumnRange.setValues(totalsTransposed)
+
+	formatRawScoresWithTotalsSheet(rawScoresWithTotalsSheet, totalsColumnRange)
+
+	log('addTotalScoreToRawScoreSheet() success!')
+}
+
+function formatRawScoresWithTotalsSheet(rawScoresWithTotalsSheet, totalsColumnRange) {
+	let sixRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([totalsColumnRange])
+		.whenFormulaSatisfied('=AND($F2 <= 6, $F2 <> "")')
+		.setBackground('#FCE8B2')
+		.build()
+	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
+		.setRanges([totalsColumnRange])
+		.whenFormulaSatisfied('=AND($F2 >= 14, $F2 <> "")')
+		.setBackground('#B7E1CD')
+		.build()
+	rawScoresWithTotalsSheet.setConditionalFormatRules([sixRule, fourteenRule, ...rawScoresWithTotalsSheet.getConditionalFormatRules()])
+	rawScoresWithTotalsSheet.setFrozenRows(1)
+}
+
 function addDuplicateFormatting(sheet) {
 	let numRows = getFirstEmptyRow(sheet) - 2
 	let numCols = RAW_SCORE_COLUMN_HEADINGS.length
@@ -206,9 +265,13 @@ function getColumnNames(sheet) {
 	return values
 }
 
-function getRowData(sheet, numColumns) {
+function getRowDataIncludingEmpty(sheet, numColumns) {
 	let numRows = getFirstEmptyRow(sheet) - 2
-	return sheet.getRange(2, 1, numRows, numColumns).getValues().filter(row => row[0])
+	return sheet.getRange(2, 1, numRows, numColumns).getValues()
+}
+
+function getRowData(sheet, numColumns) {
+	return getRowDataIncludingEmpty(sheet, numColumns).filter(row => row[0])
 }
 
 // return an object containing each team's scores received
