@@ -1,5 +1,6 @@
 const RAW_SCORE_COLUMN_HEADINGS = [
 	'Timestamp',
+	'Email',
 	'Your Team Name',
 	'Opponent Team Name',
 	'Date',

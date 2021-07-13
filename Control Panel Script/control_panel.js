@@ -20,6 +20,7 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 ]
 const RAW_SCORE_COLUMN_HEADINGS = [
 	'Timestamp',
+	'Email',
 	'Your Team Name',
 	'Opponent Team Name',
 	'Date',
@@ -48,17 +49,25 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'(Self) Additional Comments'
 ]
 
-const RAW_SCORE_ENUM = RAW_SCORE_COLUMN_HEADINGS
-	.map((heading, index) => ({ [heading]: index }))
-	.reduce((previous, current) => ({ ...previous, ...current }), {})
+const RAW_SCORE_ENUM = enumify(RAW_SCORE_COLUMN_HEADINGS)
+
+const RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS = [...RAW_SCORE_COLUMN_HEADINGS]
+RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS.splice(RAW_SCORE_ENUM['Rules Knowledge and Use'], 0, 'Total Score')
+
+RAW_SCORE_TOTAL_ENUM = enumify(RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS)
 
 // each category has a score and a comment for both the scoring team and the scored team. This is the number of columns created for each key.
 const COLUMNS_PER_CATEGORY = 4
 
-// number of hardcoded columns before scores (i.e. timestamp, team name, opponent name, date, round)
-const NUM_INITIAL_COLUMNS = 5
+// number of hardcoded columns before scores (i.e. timestamp, email, team name, opponent name, date, round)
+const NUM_INITIAL_COLUMNS = RAW_SCORE_ENUM['Rules Knowledge and Use']
 
 let errno = 0
+
+function enumify(obj) {
+	return obj.map((heading, index) => ({ [heading]: index }))
+		.reduce((previous, current) => ({ ...previous, ...current }), {})
+}
 
 function updateForm() {
 	log('running updateForm()')
@@ -185,14 +194,15 @@ function addTotalScoreToRawScoreSheet() {
 }
 
 function formatRawScoresWithTotalsSheet(rawScoresWithTotalsSheet, totalsColumnRange) {
+	let totalColumnLetter = columnToLetter(RAW_SCORE_TOTAL_ENUM['Total Score'] + 1)
 	let sixRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([totalsColumnRange])
-		.whenFormulaSatisfied('=AND($F2 <= 6, $F2 <> "")')
+		.whenFormulaSatisfied(`=AND($${totalColumnLetter}2 <= 6, $${totalColumnLetter}2 <> "")`)
 		.setBackground('#FCE8B2')
 		.build()
 	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([totalsColumnRange])
-		.whenFormulaSatisfied('=AND($F2 >= 14, $F2 <> "")')
+		.whenFormulaSatisfied(`=AND($${totalColumnLetter}2 >= 14, $${totalColumnLetter}2 <> "")`)
 		.setBackground('#B7E1CD')
 		.build()
 	rawScoresWithTotalsSheet.setConditionalFormatRules([sixRule, fourteenRule, ...rawScoresWithTotalsSheet.getConditionalFormatRules()])
@@ -234,7 +244,11 @@ function addDuplicateFormatting(sheet) {
 }
 
 function addConditionalFormatting(sheet) {
-	let range = sheet.getRange('A2:AA1000')
+	let columnsToSum = ['Rules Knowledge and Use', 'Fouls and Body Contact', 'Fair Mindedness', 'Attitude', 'Communication']
+		.map(key => columnToLetter(RAW_SCORE_ENUM[key] + 1))
+	let sumArgumentsString = columnsToSum.map(letter => `$${letter}2`).join(',')
+	let numColumns = RAW_SCORE_COLUMN_HEADINGS.length
+	let range = sheet.getRange(`A2:${columnToLetter(numColumns)}1000`)
 	range.clearFormat()
 	let zeroRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
@@ -248,12 +262,12 @@ function addConditionalFormatting(sheet) {
 		.build()
 	let sixRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
-		.whenFormulaSatisfied('=AND(SUM($F2,$J2,$N2,$R2,$V2) <= 6, $A2 <> "")')
+		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) <= 6, $A2 <> "")`)
 		.setBackground('#FCE8B2')
 		.build()
 	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
-		.whenFormulaSatisfied('=AND(SUM($F2,$J2,$N2,$R2,$V2) >= 14, $A2 <> "")')
+		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) >= 14, $A2 <> "")`)
 		.setBackground('#B7E1CD')
 		.build()
 	sheet.setConditionalFormatRules([zeroRule, fourRule, sixRule, fourteenRule])
@@ -541,4 +555,22 @@ function log(obj, omitDate) {
 	let timeStamp = `[${formatDate(now)}]`
 	cellContents = `${omitDate ? '' : timeStamp} ${String(obj)}\n${cellContents}`
 	range.setValue(cellContents)
+}
+
+function columnToLetter(column) {
+	var temp, letter = '';
+	while (column > 0) {
+		temp = (column - 1) % 26;
+		letter = String.fromCharCode(temp + 65) + letter;
+		column = (column - temp - 1) / 26;
+	}
+	return letter;
+}
+
+function letterToColumn(letter) {
+	var column = 0, length = letter.length;
+	for (var i = 0; i < length; i++) {
+		column += (letter.charCodeAt(i) - 64) * Math.pow(26, length - i - 1);
+	}
+	return column;
 }
