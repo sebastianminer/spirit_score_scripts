@@ -347,10 +347,10 @@ function compileTeamData(rowData) {
 		for (let i = 0; i < numNonTotalKeys; i++) {
 			score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS]
 			total += score[SCORE_KEYS[i]]
-			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 1]
+			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 1].toString()
 		}
 		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
-		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS] // additional comments
+		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + NUM_INITIAL_COLUMNS].toString() // additional comments
 
 		teamData[scoredTeam].push(score)
 	}
