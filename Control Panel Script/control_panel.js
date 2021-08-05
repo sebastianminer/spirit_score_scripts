@@ -538,7 +538,10 @@ function getMissedTeamsAsString(missedTeamsObj) {
 			} else if (scoresNeededFrom) {
 				missedTeams[teamName].scoresNeededFrom += `${opponentName} (${scoresNeededFrom})\n`
 			}
-			missedTeams[teamName].scoresFor += `${opponentName} (${scoresFor})\n`
+
+			if (scoresFor > 0) {
+				missedTeams[teamName].scoresFor += `${opponentName} (${scoresFor})\n`
+			}
 		})
 		let scoresNeededFor = missedTeams[teamName].scoresNeededFor
 		let scoresNeededFrom = missedTeams[teamName].scoresNeededFrom
