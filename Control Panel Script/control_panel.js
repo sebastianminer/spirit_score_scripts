@@ -120,6 +120,7 @@ function addColorFormatting() {
 	if (sheet) {
 		addConditionalFormatting(sheet)
 		addDuplicateFormatting(sheet)
+		addSelfScoreFormatting(sheet)
 	}
 }
 
@@ -209,6 +210,31 @@ function formatRawScoresWithTotalsSheet(rawScoresWithTotalsSheet, totalsColumnRa
 		.build()
 	rawScoresWithTotalsSheet.setConditionalFormatRules([sixRule, fourteenRule, ...rawScoresWithTotalsSheet.getConditionalFormatRules()])
 	rawScoresWithTotalsSheet.setFrozenRows(1)
+}
+
+function addSelfScoreFormatting(sheet) {
+	let numRows = getFirstEmptyRow(sheet) - 2
+	let numCols = RAW_SCORE_COLUMN_HEADINGS.length
+	let range = sheet.getRange(2, 1, numRows, numCols)
+	let rows = range.getValues()
+	let duplicateRowIndices = []
+	rows.forEach((row, index) => {
+		let team = row[RAW_SCORE_ENUM['Your Team Name']]
+		let opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
+		if (team === opponent && team !== '') {
+			duplicateRowIndices.push(index)
+		}
+	})
+
+	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
+	let opponentColNum = RAW_SCORE_ENUM['Opponent Team Name'] + 1
+	numCols = opponentColNum - teamColNum + 1
+	duplicateRowIndices.forEach(rowIndex => {
+		let rowNum = rowIndex + 2
+		let range = sheet.getRange(rowNum, teamColNum, 1, numCols)
+		range.clearFormat()
+		range.setBackground('#B57924')
+	})
 }
 
 function addDuplicateFormatting(sheet) {
