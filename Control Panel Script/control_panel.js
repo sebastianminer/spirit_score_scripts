@@ -3,6 +3,7 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 	'Team',
 	'Number of Scores Submitted',
 	'Number of Scores Received',
+	'Teams Scored',
 	'Teams Who Need a Score',
 	'Teams from Whom a Score Is Needed',
 	'Total',
@@ -50,11 +51,12 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 ]
 
 const RAW_SCORE_ENUM = enumify(RAW_SCORE_COLUMN_HEADINGS)
+const TEAM_DATA_ENUM = enumify(TEAM_DATA_COLUMN_HEADINGS)
 
 const RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS = [...RAW_SCORE_COLUMN_HEADINGS]
 RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS.splice(RAW_SCORE_ENUM['Rules Knowledge and Use'], 0, 'Total Score')
 
-RAW_SCORE_TOTAL_ENUM = enumify(RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS)
+const RAW_SCORE_TOTAL_ENUM = enumify(RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS)
 
 // each category has a score and a comment for both the scoring team and the scored team. This is the number of columns created for each key.
 const COLUMNS_PER_CATEGORY = 4
@@ -128,7 +130,7 @@ function sortAggregateScoreSheet() {
 	let numRows = getFirstEmptyRow(teamDataSheet) - 2
 	let range = teamDataSheet.getRange(2, 1, numRows, numColumns)
 	range.sort({
-		column: 6,
+		column: TEAM_DATA_ENUM.Total + 1,
 		ascending: false
 	})
 	let winnerRange = teamDataSheet.getRange(2, 1, 1, numColumns)
@@ -143,7 +145,7 @@ function sortRawScoreSheet() {
 	let numRows = getFirstEmptyRow(rawScoreSheet) - 2
 	let range = rawScoreSheet.getRange(2, 1, numRows, numColumns)
 	range.sort({
-		column: 1,
+		column: RAW_SCORE_TOTAL_ENUM.Timestamp,
 	})
 	addColorFormatting()
 	log('sortRawScoreSheet() success!')
@@ -343,6 +345,7 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 			team,
 			teamAverages[team].scoresSubmitted,
 			teamAverages[team].scoresReceived,
+			missedTeams[team].scoresFor,
 			missedTeams[team].scoresNeededFor,
 			missedTeams[team].scoresNeededFrom,
 			teamAverages[team].total,
@@ -462,23 +465,34 @@ function compileMissedTeams(teamData) {
 			let scoresNeededFor = quantity.scoresFrom - quantity.scoresFor
 			let scoresNeededFrom = -scoresNeededFor
 
-			if (scoresNeededFor) {
-				if (!missedTeams[teamName][opponentName]) {
-					missedTeams[teamName][opponentName] = {
-						scoresNeededFor: 0,
-						scoresNeededFrom: 0
-					}
+			if (!missedTeams[teamName][opponentName]) {
+				missedTeams[teamName][opponentName] = {
+					scoresNeededFor: 0,
+					scoresNeededFrom: 0,
+					scoresFor: 0
 				}
 			}
+
 			if (scoresNeededFor > 0) {
 				missedTeams[teamName][opponentName].scoresNeededFor = scoresNeededFor
 			} else if (scoresNeededFrom > 0) {
 				missedTeams[teamName][opponentName].scoresNeededFrom = scoresNeededFrom
 			}
+			missedTeams[teamName][opponentName].scoresFor = quantity.scoresFor
 		})
 	})
 
 	return getMissedTeamsAsString(missedTeams)
+}
+
+function getTeamsScoredAsString(teamsScoredObj) {
+	teamsScored = ''
+	Object.keys(teamsScoredObj).sort().forEach(opponentName => {
+		let numScoresForOpponent = teamsScoredObj[opponentName]
+		teamsScored += `${opponentName} (${numScoresForOpponent})\n`
+	})
+	teamsScored = teamsScored.substring(0, teamsScored.length - 1)
+	return teamsScored
 }
 
 function getMissedTeamsAsString(missedTeamsObj) {
@@ -486,21 +500,27 @@ function getMissedTeamsAsString(missedTeamsObj) {
 	Object.keys(missedTeamsObj).forEach(teamName => {
 		missedTeams[teamName] = {
 			scoresNeededFor: '',
-			scoresNeededFrom: ''
+			scoresNeededFrom: '',
+			scoresFor: ''
 		}
 		Object.keys(missedTeamsObj[teamName]).sort().forEach(opponentName => {
 			let scoresNeededFor = missedTeamsObj[teamName][opponentName].scoresNeededFor
 			let scoresNeededFrom = missedTeamsObj[teamName][opponentName].scoresNeededFrom
+			let scoresFor = missedTeamsObj[teamName][opponentName].scoresFor
 			if (scoresNeededFor) {
 				missedTeams[teamName].scoresNeededFor += `${opponentName} (${scoresNeededFor})\n`
 			} else if (scoresNeededFrom) {
 				missedTeams[teamName].scoresNeededFrom += `${opponentName} (${scoresNeededFrom})\n`
 			}
+			missedTeams[teamName].scoresFor += `${opponentName} (${scoresFor})\n`
 		})
 		let scoresNeededFor = missedTeams[teamName].scoresNeededFor
 		let scoresNeededFrom = missedTeams[teamName].scoresNeededFrom
+		let scoresFor = missedTeams[teamName].scoresFor
+		log(scoresFor)
 		missedTeams[teamName].scoresNeededFor = scoresNeededFor.substring(0, scoresNeededFor.length - 1)
 		missedTeams[teamName].scoresNeededFrom = scoresNeededFrom.substring(0, scoresNeededFrom.length - 1)
+		missedTeams[teamName].scoresFor = scoresFor.substring(0, scoresFor.length - 1)
 	})
 	return missedTeams
 }
