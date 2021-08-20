@@ -146,7 +146,7 @@ function sortRawScoreSheet() {
 	let numRows = getFirstEmptyRow(rawScoreSheet) - 2
 	let range = rawScoreSheet.getRange(2, 1, numRows, numColumns)
 	range.sort({
-		column: RAW_SCORE_TOTAL_ENUM.Timestamp,
+		column: RAW_SCORE_TOTAL_ENUM.Timestamp + 1,
 	})
 	addColorFormatting()
 	log('sortRawScoreSheet() success!')
