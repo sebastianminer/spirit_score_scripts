@@ -3,7 +3,7 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 	'Team',
 	'Number of Scores Submitted',
 	'Number of Scores Received',
-	'Teams Who Need a Score',
+	'Teams Who Need to Be Scored',
 	'Teams from Whom a Score Is Needed',
 	'Total',
 	'Rules Knowledge and Use',
