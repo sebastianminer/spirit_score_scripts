@@ -24,7 +24,7 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Tournament', // note: not present in RAW_SCORE_COLUMN_HEADINGS in form_factory_control_panel.js or control_panel.js
 	'Your Team Name',
 	'Opponent Team Name',
-	'Date',
+	'Day',
 	'Round',
 	'Rules Knowledge and Use',
 	'Comments (Rules Knowledge and Use)',
@@ -211,7 +211,7 @@ function addDuplicateFormatting(sheet) {
 	rows.forEach((row, index) => {
 		let team = row[RAW_SCORE_ENUM['Your Team Name']]
 		let opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
-		let date = row[RAW_SCORE_ENUM['Date']]
+		let date = row[RAW_SCORE_ENUM['Day']]
 		let tupleStr = team + opponent + date
 		if (possibleDuplicates[tupleStr]) {
 			possibleDuplicates[tupleStr].push(index)
@@ -224,7 +224,7 @@ function addDuplicateFormatting(sheet) {
 		.reduce((cumulativeObj, [key, value]) => ({ ...cumulativeObj, [key]: value }), {})
 
 	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
-	let dateColNum = RAW_SCORE_ENUM['Date'] + 1
+	let dateColNum = RAW_SCORE_ENUM['Day'] + 1
 	numCols = dateColNum - teamColNum + 1
 	Object.keys(possibleDuplicates).forEach(key => {
 		possibleDuplicates[key].forEach(rowIndex => {
@@ -454,7 +454,7 @@ function compileTeamData(rowData) {
 		let scoringTeam = row[RAW_SCORE_ENUM['Your Team Name']]
 		let scoredTeam = row[RAW_SCORE_ENUM['Opponent Team Name']]
 		let time = row[RAW_SCORE_ENUM['Timestamp']]
-		let date = row[RAW_SCORE_ENUM['Date']]
+		let date = row[RAW_SCORE_ENUM['Day']]
 		let round = row[RAW_SCORE_ENUM['Round']]
 
 		if (!teamData.hasOwnProperty(scoringTeam)) {
