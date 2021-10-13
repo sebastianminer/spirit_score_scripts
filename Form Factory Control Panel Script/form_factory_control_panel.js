@@ -98,10 +98,16 @@ function copyFilesToFolder(fileIterator, folder) {
 	}
 
 	linkSheetToForm(FormApp.openByUrl(formUrl), controlPanelSpreadsheet, 'Raw Scores', RAW_SCORE_COLUMN_HEADINGS)
+	createColumnHeadings(controlPanelSpreadsheet.getSheetByName('Raw Scores'), RAW_SCORE_COLUMN_HEADINGS)
 
 	// refresh sheet references in the formulas in these sheets, because the raw scores sheet didn't exist before,
 	//  causing the references to break until we refresh them
 	remakeSheets(controlPanelSpreadsheet, SHEETS_TO_REMAKE)
+}
+
+function createColumnHeadings(sheet, columnHeadings) {
+	let numColumns = columnHeadings.length
+	sheet.getRange(`R1C1:R1C${numColumns}`).setValues([columnHeadings])
 }
 
 function remakeSheets(spreadsheet, sheetNames) {
