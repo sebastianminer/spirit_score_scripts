@@ -28,6 +28,9 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Additional Comments',
 	'(Self) Additional Comments'
 ]
+
+const SHEETS_TO_REMAKE = ['_rawScores']
+
 let errno = 0
 
 function onFormSubmit(e) {
@@ -95,6 +98,21 @@ function copyFilesToFolder(fileIterator, folder) {
 	}
 
 	linkSheetToForm(FormApp.openByUrl(formUrl), controlPanelSpreadsheet, 'Raw Scores', RAW_SCORE_COLUMN_HEADINGS)
+
+	// refresh sheet references in the formulas in these sheets, because the raw scores sheet didn't exist before,
+	//  causing the references to break until we refresh them
+	remakeSheets(controlPanelSpreadsheet, SHEETS_TO_REMAKE)
+}
+
+function remakeSheets(spreadsheet, sheetNames) {
+	sheetNames.forEach(sheetName => {
+		let sheet = spreadsheet.getSheetByName(sheetName)
+
+		let range = sheet.getDataRange()
+		let formulas = range.getFormulas()
+		range.clearContent()
+		range.setFormulas(formulas)
+	})
 }
 
 function getEmailsFromResponse(rawResponse) {
