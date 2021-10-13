@@ -28,32 +28,32 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Round',
 	'Rules Knowledge and Use',
 	'Comments (Rules Knowledge and Use)',
-	'(Self) Rules Knowledge and Use',
-	'(Self) Comments (Rules Knowledge and Use)',
 	'Fouls and Body Contact',
 	'Comments (Fouls and Body Contact)',
-	'(Self) Fouls and Body Contact',
-	'(Self) Comments (Fouls and Body Contact)',
 	'Fair Mindedness',
 	'Comments (Fair Mindedness)',
-	'(Self) Fair Mindedness',
-	'(Self) Comments (Fair Mindedness)',
 	'Attitude',
 	'Comments (Attitude)',
-	'(Self) Attitude',
-	'(Self) Comments (Attitude)',
 	'Communication',
 	'Comments (Communication)',
+	'Additional Comments',
+	'(Self) Rules Knowledge and Use',
+	'(Self) Comments (Rules Knowledge and Use)',
+	'(Self) Fouls and Body Contact',
+	'(Self) Comments (Fouls and Body Contact)',
+	'(Self) Fair Mindedness',
+	'(Self) Comments (Fair Mindedness)',
+	'(Self) Attitude',
+	'(Self) Comments (Attitude)',
 	'(Self) Communication',
 	'(Self) Comments (Communication)',
-	'Additional Comments',
 	'(Self) Additional Comments'
 ]
 
 const RAW_SCORE_ENUM = enumify(RAW_SCORE_COLUMN_HEADINGS)
 
-// each category has a score and a comment for both the scoring team and the scored team. This is the number of columns created for each key.
-const COLUMNS_PER_CATEGORY = 4
+// each category has a score and a comment. This is the number of columns created for each key for each team.
+const COLUMNS_PER_CATEGORY = 2
 
 // number of hardcoded columns before scores (i.e. timestamp, email, tournament, team name, opponent name, date, round)
 const NUM_INITIAL_COLUMNS = RAW_SCORE_ENUM['Rules Knowledge and Use']
