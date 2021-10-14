@@ -3,7 +3,7 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Email',
 	'Your Team Name',
 	'Opponent Team Name',
-	'Date',
+	'Day',
 	'Round',
 	'Rules Knowledge and Use',
 	'Comments (Rules Knowledge and Use)',
@@ -158,7 +158,10 @@ function linkSheetToForm(form, spr, responseSheetName, responseColumnHeadings) {
 			sheet.setName(responseSheetName)
 			if (responseColumnHeadings) {
 				let numCols = responseColumnHeadings.length
-				sheet.getRange(1, 1, 1, numCols).setValues([responseColumnHeadings])
+				let range = sheet.getRange(1, 1, 1, numCols)
+				range.setValues([responseColumnHeadings])
+				range.setFontWeight('bold')
+				range.setWrap(true)
 			}
 			break
 		}

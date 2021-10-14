@@ -111,16 +111,17 @@ function aggregateScores() {
 
 function colorFormattingButtonClick() {
 	log('running colorFormattingButtonClick()')
-	addColorFormatting()
+	addColorFormattingAndColumnHeadings()
 	log('colorFormattingButtonClick() success!')
 }
 
-function addColorFormatting() {
+function addColorFormattingAndColumnHeadings() {
 	let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 	if (sheet) {
 		addConditionalFormatting(sheet)
 		addDuplicateFormatting(sheet)
 		addSelfScoreFormatting(sheet)
+		createColumnHeadings(sheet, RAW_SCORE_COLUMN_HEADINGS)
 	}
 }
 
@@ -148,7 +149,7 @@ function sortRawScoreSheet() {
 	range.sort({
 		column: RAW_SCORE_TOTAL_ENUM.Timestamp + 1,
 	})
-	addColorFormatting()
+	addColorFormattingAndColumnHeadings()
 	log('sortRawScoreSheet() success!')
 }
 
