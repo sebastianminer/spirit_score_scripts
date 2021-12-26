@@ -547,7 +547,6 @@ function getMissedTeamsAsString(missedTeamsObj) {
 		let scoresNeededFor = missedTeams[teamName].scoresNeededFor
 		let scoresNeededFrom = missedTeams[teamName].scoresNeededFrom
 		let scoresFor = missedTeams[teamName].scoresFor
-		log(scoresFor)
 		missedTeams[teamName].scoresNeededFor = scoresNeededFor.substring(0, scoresNeededFor.length - 1)
 		missedTeams[teamName].scoresNeededFrom = scoresNeededFrom.substring(0, scoresNeededFrom.length - 1)
 		missedTeams[teamName].scoresFor = scoresFor.substring(0, scoresFor.length - 1)
