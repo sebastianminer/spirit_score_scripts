@@ -64,6 +64,8 @@ const COLUMNS_PER_CATEGORY = 2
 // number of hardcoded columns before scores (i.e. timestamp, email, team name, opponent name, date, round)
 const NUM_INITIAL_COLUMNS = RAW_SCORE_ENUM['Rules Knowledge and Use']
 
+const AVERAGE_TOTAL_SCORE = 10
+
 let errno = 0
 
 function enumify(obj) {
@@ -91,8 +93,8 @@ function updateForm() {
 	log('updateForm() success!')
 }
 
-function aggregateScores() {
-	log('running aggregateScores()')
+function aggregateScores(normalize = false) {
+	log(`running aggregateScores(normalize = ${normalize})`)
 	let controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel')
 	let rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
@@ -101,12 +103,16 @@ function aggregateScores() {
 	teamDataSheet.getRange('2:2').clearFormat() // clear green formatting on winner row, if the sheet had been sorted previously
 	let columnNames = getColumnNames(rawScoreSheet)
 	let rowData = getRowData(rawScoreSheet, columnNames.length)
-	let teamData = compileTeamData(rowData)
+	let teamData = compileTeamData(rowData, normalize)
 	importTeamsIntoDatabase(teamData, teamDataSheet)
 
 	controlPanel.getRange('A14').setValue('Scores last aggregated:')
 	controlPanel.getRange('B14').setValue(formatDate(new Date(Date.now())))
 	log('aggregateScores() success!')
+}
+
+function aggregateScoresWithNormalization() {
+	aggregateScores(true)
 }
 
 function colorFormattingButtonClick() {
@@ -317,9 +323,55 @@ function getRowData(sheet, numColumns) {
 	return getRowDataIncludingEmpty(sheet, numColumns).filter(row => row[0])
 }
 
+function getGivenTotalScoresByTeam(rowData) {
+	let givenTotalScoresByTeam = {}
+	for (let row of rowData) {
+		let scoringTeam = row[RAW_SCORE_ENUM['Your Team Name']]
+		let numNonTotalKeys = SCORE_KEYS.length - 1
+		let total = 0
+		for (let i = 0; i < numNonTotalKeys; i++) {
+			total += row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS]
+		}
+
+		if (!givenTotalScoresByTeam[scoringTeam]) {
+			givenTotalScoresByTeam[scoringTeam] = []
+		}
+		givenTotalScoresByTeam[scoringTeam].push(total)
+	}
+
+	let averageTotalGivenByTeam = Object.entries(givenTotalScoresByTeam)
+		.reduce((cumulativeObj, [team, totals]) => ({
+			...cumulativeObj,
+			[team]: totals.length
+				? totals.reduce((sum, score) => sum + score, 0) / totals.length
+				: AVERAGE_TOTAL_SCORE
+		}), {})
+
+	return averageTotalGivenByTeam
+}
+
+function normalizeScore(averageTotalForScoringTeam, score) {
+	score *= SCORE_KEYS.length - 1
+	let normalizedScore
+	if (averageTotalForScoringTeam > AVERAGE_TOTAL_SCORE) {
+		normalizedScore = score / averageTotalForScoringTeam * AVERAGE_TOTAL_SCORE
+	} else if (averageTotalForScoringTeam < AVERAGE_TOTAL_SCORE) {
+		normalizedScore = (score - 2 * AVERAGE_TOTAL_SCORE) / (2 - averageTotalForScoringTeam / AVERAGE_TOTAL_SCORE) + 2 * AVERAGE_TOTAL_SCORE
+	} else {
+		normalizedScore = score
+	}
+	return normalizedScore / (SCORE_KEYS.length - 1)
+}
+
 // return an object containing each team's scores received
-function compileTeamData(rowData) {
-	teamData = {}
+function compileTeamData(rowData, normalize = false) {
+	let teamData = {}
+	let givenTotalScoresByTeam
+
+	if (normalize) {
+		givenTotalScoresByTeam = getGivenTotalScoresByTeam(rowData)
+	}
+
 	for (let row of rowData) {
 		let scoringTeam = row[RAW_SCORE_ENUM['Your Team Name']]
 		let scoredTeam = row[RAW_SCORE_ENUM['Opponent Team Name']]
@@ -346,8 +398,14 @@ function compileTeamData(rowData) {
 		let total = 0
 
 		for (let i = 0; i < numNonTotalKeys; i++) {
-			score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS]
-			total += score[SCORE_KEYS[i]]
+			let scoreValue = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS]
+
+			if (normalize) {
+				scoreValue = normalizeScore(givenTotalScoresByTeam[scoringTeam], scoreValue)
+			}
+
+			score[SCORE_KEYS[i]] = scoreValue
+			total += scoreValue
 			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + NUM_INITIAL_COLUMNS + 1].toString()
 		}
 		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
