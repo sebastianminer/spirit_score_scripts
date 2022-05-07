@@ -166,6 +166,7 @@ function linkSheetToForm(form, spr, responseSheetName, responseColumnHeadings) {
 			break
 		}
 	}
+	SpreadsheetApp.flush()
 }
 
 function createFormSubmissionTrigger(form) {
