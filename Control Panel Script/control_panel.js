@@ -109,7 +109,7 @@ function aggregateScoresAndGenerateMailMerge() {
 	log('running aggregateScoresAndGenerateMailMerge()')
 	let controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel')
 	let rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
-	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
+	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Team Data')
 
 	teamDataSheet.clearContents()
 	teamDataSheet.getRange('2:2').clearFormat() // clear green formatting on winner row, if the sheet had been sorted previously
@@ -143,7 +143,7 @@ function addColorFormattingAndColumnHeadings() {
 
 function sortAggregateScoreSheet() {
 	log('running sortAggregateScoreSheet()')
-	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Aggregate Team Data')
+	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Team Data')
 	let numColumns = TEAM_DATA_COLUMN_HEADINGS.length
 	let numRows = getFirstEmptyRow(teamDataSheet) - 2
 	let range = teamDataSheet.getRange(2, 1, numRows, numColumns)
