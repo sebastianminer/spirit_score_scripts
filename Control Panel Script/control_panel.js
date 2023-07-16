@@ -420,13 +420,17 @@ function getTeamToLastEmailAddressDictionary(rowData) {
 }
 
 function generateMailMerge(teamData, rowData) {
+	const controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel') 
+	const header = controlPanel.getRange('B39').getValue()
+	const footer = controlPanel.getRange('B41').getValue()
+
 	const teamToLastEmailAddressDictionary = getTeamToLastEmailAddressDictionary(rowData)
 	const mailMergeByTeam = Object.keys(teamData).reduce((dict, teamName) => ({
 		...dict,
 		[teamName]: { 
 			emailAddress: teamToLastEmailAddressDictionary[teamName],
 			emailSubject: `Spirit Scores for ${teamName}`,
-			emailBody: `Thank you for participating in spirit scoring! Below you will find the scores that your team received from this tournament.\n`
+			emailBody: `${header}\n`
 	 }}), {})
 	Object.entries(teamData).forEach(([teamName, scores]) => {
 		scores.forEach(score => {
@@ -442,6 +446,7 @@ function generateMailMerge(teamData, rowData) {
 				str + `\n${SCORE_KEYS_TO_COLUMN_HEADING[scoreKey]}: ${score[scoreKey]}`, ''
 			)
 		})
+		mailMergeByTeam[teamName].emailBody += `\n\n${footer}`
 	})
 	
 	return mailMergeByTeam
