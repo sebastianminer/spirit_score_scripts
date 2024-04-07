@@ -9,23 +9,15 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Comments (Rules Knowledge and Use)',
 	'Fouls and Body Contact',
 	'Comments (Fouls and Body Contact)',
-	'Fair Mindedness',
-	'Comments (Fair Mindedness)',
-	'Attitude',
-	'Comments (Attitude)',
-	'Communication',
-	'Comments (Communication)',
+	'Communication and Conduct',
+	'Comments (Communication and Conduct)',
 	'Additional Comments',
 	'(Self) Rules Knowledge and Use',
 	'(Self) Comments (Rules Knowledge and Use)',
 	'(Self) Fouls and Body Contact',
 	'(Self) Comments (Fouls and Body Contact)',
-	'(Self) Fair Mindedness',
-	'(Self) Comments (Fair Mindedness)',
-	'(Self) Attitude',
-	'(Self) Comments (Attitude)',
-	'(Self) Communication',
-	'(Self) Comments (Communication)',
+	'(Self) Communication and Conduct',
+	'(Self) Comments (Communication and Conduct)',
 	'(Self) Additional Comments'
 ]
 
@@ -137,7 +129,11 @@ function createFolder(parentFolder, name) {
 }
 
 function getTemplateFolderContents(parentFolder) {
-	let templateFolder = parentFolder.getParents().next().getParents().next().getFoldersByName('Templates (do not edit contents)').next().getFoldersByName('Tournament Templates').next()
+	let spiritScoresFolder = parentFolder.getParents().next().getParents().next()
+	while (!spiritScoresFolder.getFoldersByName('Templates (do not edit contents)').hasNext()) {
+		spiritScoresFolder = spiritScoresFolder.getParents().next()
+	}
+	let templateFolder = spiritScoresFolder.getFoldersByName('Templates (do not edit contents)').next().getFoldersByName('Tournament Templates').next()
 	return templateFolder.getFiles()
 }
 
