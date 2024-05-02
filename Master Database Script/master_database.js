@@ -1,4 +1,4 @@
-const SCORE_KEYS = ['rules', 'fouls', 'fairMind', 'attitude', 'communication', 'total']
+const SCORE_KEYS = ['rules', 'fouls', 'communication', 'total']
 const TEAM_DATA_COLUMN_HEADINGS = [
 	'Team',
 	'Number of Scores Submitted',
@@ -8,14 +8,10 @@ const TEAM_DATA_COLUMN_HEADINGS = [
 	'Total',
 	'Rules Knowledge and Use',
 	'Fouls and Body Contact',
-	'Fair Mindedness',
-	'Positive Attitude and Self-Control',
-	'Communication',
+	'Communication and Conduct',
 	'Comments (Rules Knowledge and Use)',
 	'Comments (Fouls and Body Contact)',
-	'Comments (Fair Mindedness)',
-	'Comments (Positive Attitude and Self-Control)',
-	'Comments (Communication)',
+	'Comments (Communication and Conduct)',
 	'Additional Comments'
 ]
 const RAW_SCORE_COLUMN_HEADINGS = [
@@ -30,23 +26,15 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Comments (Rules Knowledge and Use)',
 	'Fouls and Body Contact',
 	'Comments (Fouls and Body Contact)',
-	'Fair Mindedness',
-	'Comments (Fair Mindedness)',
-	'Attitude',
-	'Comments (Attitude)',
-	'Communication',
-	'Comments (Communication)',
+	'Communication and Conduct',
+	'Comments (Communication and Conduct)',
 	'Additional Comments',
 	'(Self) Rules Knowledge and Use',
 	'(Self) Comments (Rules Knowledge and Use)',
 	'(Self) Fouls and Body Contact',
 	'(Self) Comments (Fouls and Body Contact)',
-	'(Self) Fair Mindedness',
-	'(Self) Comments (Fair Mindedness)',
-	'(Self) Attitude',
-	'(Self) Comments (Attitude)',
-	'(Self) Communication',
-	'(Self) Comments (Communication)',
+	'(Self) Communication and Conduct',
+	'(Self) Comments (Communication and Conduct)',
 	'(Self) Additional Comments'
 ]
 
@@ -263,7 +251,7 @@ function addDuplicateFormatting(sheet) {
 }
 
 function addConditionalFormatting(sheet) {
-	let columnsToSum = ['Rules Knowledge and Use', 'Fouls and Body Contact', 'Fair Mindedness', 'Attitude', 'Communication']
+	let columnsToSum = ['Rules Knowledge and Use', 'Fouls and Body Contact', 'Communication and Conduct']
 		.map(key => columnToLetter(RAW_SCORE_ENUM[key] + 1))
 	let sumArgumentsString = columnsToSum.map(letter => `$${letter}2`).join(',')
 	let numColumns = RAW_SCORE_COLUMN_HEADINGS.length
@@ -279,17 +267,17 @@ function addConditionalFormatting(sheet) {
 		.whenNumberEqualTo(4)
 		.setBackground('#84D6AF')
 		.build()
-	let sixRule = SpreadsheetApp.newConditionalFormatRule()
+	let fourTotalRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
-		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) <= 6, $A2 <> "")`)
+		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) <= 4, $A2 <> "")`)
 		.setBackground('#FCE8B2')
 		.build()
-	let fourteenRule = SpreadsheetApp.newConditionalFormatRule()
+	let eightTotalRule = SpreadsheetApp.newConditionalFormatRule()
 		.setRanges([range])
-		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) >= 14, $A2 <> "")`)
+		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) >= 8, $A2 <> "")`)
 		.setBackground('#B7E1CD')
 		.build()
-	sheet.setConditionalFormatRules([zeroRule, fourRule, sixRule, fourteenRule])
+	sheet.setConditionalFormatRules([zeroRule, fourRule, fourTotalRule, eightTotalRule])
 }
 
 function importTeamsIntoDatabase(teamData, teamDataSheet) {
@@ -311,13 +299,9 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 			teamAverages[team].total,
 			teamAverages[team].rules,
 			teamAverages[team].fouls,
-			teamAverages[team].fairMind,
-			teamAverages[team].attitude,
 			teamAverages[team].communication,
 			JSON.stringify(teamComments[team].rules),
 			JSON.stringify(teamComments[team].fouls),
-			JSON.stringify(teamComments[team].fairMind),
-			JSON.stringify(teamComments[team].attitude),
 			JSON.stringify(teamComments[team].communication),
 			JSON.stringify(teamComments[team].total)
 		]
