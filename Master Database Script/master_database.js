@@ -29,6 +29,8 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Communication and Conduct',
 	'Comments (Communication and Conduct)',
 	'Additional Comments',
+  'Observer Score',
+  'Observer Comments',
 	'(Self) Rules Knowledge and Use',
 	'(Self) Comments (Rules Knowledge and Use)',
 	'(Self) Fouls and Body Contact',
