@@ -12,6 +12,8 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Communication and Conduct',
 	'Comments (Communication and Conduct)',
 	'Additional Comments',
+  'Observer Score',
+  'Observer Comments',
 	'(Self) Rules Knowledge and Use',
 	'(Self) Comments (Rules Knowledge and Use)',
 	'(Self) Fouls and Body Contact',
@@ -71,9 +73,9 @@ function copyFilesToFolder(fileIterator, folder) {
 		let mimeType = file.getMimeType()
 		let name
 		if (mimeType === MimeType.GOOGLE_SHEETS) {
-			name = folder.getName() + ' Spirit Score Control Panel'
+			name = folder.getName() + ' Spirit Scorekeeping'
 		} else if (mimeType === MimeType.GOOGLE_FORMS) {
-			name = folder.getName() + ' Spirit Score Form'
+			name = folder.getName() + ' Spirit Scoring Form'
 		} else {
 			name = file.getName()
 		}
