@@ -35,6 +35,8 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Communication and Conduct',
 	'Comments (Communication and Conduct)',
 	'Additional Comments',
+	'Observer Score',
+	'Observer Comments',
 	'(Self) Rules Knowledge and Use',
 	'(Self) Comments (Rules Knowledge and Use)',
 	'(Self) Fouls and Body Contact',
@@ -44,7 +46,7 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'(Self) Additional Comments'
 ]
 const MAIL_MERGE_COLUMN_HEADINGS = [
-	'Email Address',
+	'Email Addresses',
 	'Subject',
 	'Body'
 ]
@@ -63,8 +65,9 @@ const COLUMNS_PER_CATEGORY = 2
 
 // number of hardcoded columns before scores (i.e. timestamp, email, team name, opponent name, date, round)
 const NUM_INITIAL_COLUMNS = RAW_SCORE_ENUM['Rules Knowledge and Use']
-
-let errno = 0
+		
+// number of columns for observer scores
+const NUM_OBSERVER_COLUMNS = 2
 
 function enumify(obj) {
 	return obj.map((heading, index) => ({ [heading]: index }))
@@ -74,7 +77,7 @@ function enumify(obj) {
 function updateForm() {
 	log('running updateForm()')
 	let spr = SpreadsheetApp.getActiveSpreadsheet()
-	let tournamentURL = spr.getRange('B1').getValue()
+	let tournamentURL = spr.getRange('TournamentPageURL').getValue()
 	let teamSet = getTeamsFromURL(tournamentURL)
 	let teams = Array.from(teamSet).sort()
 	let rawScoreSheet = spr.getSheetByName('Raw Scores')
@@ -86,8 +89,13 @@ function updateForm() {
 	setListItemChoices(yourTeamItem, teams)
 	setListItemChoices(opponentTeamItem, teams)
 
-	spr.getRange('A13').setValue('Teams last updated on form:')
-	spr.getRange('B13').setValue(formatDate(new Date(Date.now())))
+	spr.getRange('LiveFormURL').setValue(rawScoreSheet.getFormUrl())
+
+	spr.getRange('TeamNamesLastUpdated').setValue(formatDate(new Date(Date.now())))
+// Convert the array of teams to a 2D array for setValues
+	let teams2D = teams.map(team => [team.trim()])
+// Set the values starting from cell H6
+	spr.getRange('TeamNames').offset(0, 0, teams.length, 1).setValues(teams2D)
 	log('updateForm() success!')
 }
 
@@ -102,12 +110,12 @@ function aggregateScoresAndGenerateMailMerge() {
 	let columnNames = getColumnNames(rawScoreSheet)
 	let rowData = getRowData(rawScoreSheet, columnNames.length)
 	let teamData = compileTeamData(rowData)
+	let selfScoreTeamData = compileTeamDataForSelfScores(rowData)
 	importTeamsIntoDatabase(teamData, teamDataSheet)
-	let mailMergeData = generateMailMerge(teamData, rowData)
+	let mailMergeData = generateMailMerge(teamData, selfScoreTeamData, rowData)
 	importMailMergeIntoSheet(mailMergeData)
 
-	controlPanel.getRange('A14').setValue('Scores last aggregated:')
-	controlPanel.getRange('B14').setValue(formatDate(new Date(Date.now())))
+	controlPanel.getRange('ScoresLastCalculated').setValue(formatDate(new Date(Date.now())))
 	log('aggregateScoresAndGenerateMailMerge() success!')
 }
 
@@ -358,6 +366,51 @@ function compileTeamData(rowData) {
 	return teamData
 }
 
+function compileTeamDataForSelfScores(rowData) {
+	teamData = {}
+	for (let row of rowData) {
+		let scoringTeam = row[RAW_SCORE_ENUM['Your Team Name']]
+		let opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
+		let time = row[RAW_SCORE_ENUM['Timestamp']]
+		let date = row[RAW_SCORE_ENUM['Day']]
+		let round = row[RAW_SCORE_ENUM['Round']]
+
+		if (!teamData.hasOwnProperty(scoringTeam)) {
+			teamData[scoringTeam] = []
+		}
+
+		let score = {
+			time,
+			opponent,
+			date,
+			round,
+			comments: {}
+		}
+
+		let numNonTotalKeys = SCORE_KEYS.length - 1
+		let total = 0
+		let columnOffset = NUM_INITIAL_COLUMNS
+				+ COLUMNS_PER_CATEGORY * numNonTotalKeys // all scored categories
+				+ 1 // additional comments
+				+ NUM_OBSERVER_COLUMNS;
+
+		for (let i = 0; i < numNonTotalKeys; i++) {
+			score[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + columnOffset]
+			total += score[SCORE_KEYS[i]] || 0
+			score.comments[SCORE_KEYS[i]] = row[COLUMNS_PER_CATEGORY*i + columnOffset + 1].toString()
+		}
+		score[SCORE_KEYS[SCORE_KEYS.length-1]] = total
+		score.comments[SCORE_KEYS[SCORE_KEYS.length-1]] = row[(SCORE_KEYS.length-1)*COLUMNS_PER_CATEGORY + columnOffset].toString() // additional comments
+
+
+		// Only add a score if it's been filled out at all
+		if (SCORE_KEYS.some(key => key !== 'total' && score[key] !== '')) {
+			teamData[scoringTeam].push(score)
+		}
+	}
+	return teamData
+}
+
 function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	let teamAverages = compileTeamAverages(teamData)
 	let teamComments = compileTeamComments(teamData)
@@ -389,30 +442,54 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 	range.setValues(scores)
 }
 
-function getTeamToLastEmailAddressDictionary(rowData) {
-	const teamToLastEmailAddressDictionary = rowData.reduce((dict, row) => {
+function getTeamToEmailAddressesDictionary(rowData) {
+	const teamToEmailAddressesDictionary = rowData.reduce((dict, row) => {
 		const teamName = row[RAW_SCORE_ENUM['Your Team Name']]
 		const email = row[RAW_SCORE_ENUM['Email']]
-		dict[teamName] = email
+		if (!dict.hasOwnProperty(teamName)) {
+			dict[teamName] = new Set()
+		}
+		dict[teamName].add(email)
 		return dict
 	}, {})
-	return teamToLastEmailAddressDictionary
+	Object.keys(teamToEmailAddressesDictionary).forEach(teamName => {
+		teamToEmailAddressesDictionary[teamName] = Array.from(teamToEmailAddressesDictionary[teamName])
+	})
+	return teamToEmailAddressesDictionary
 }
 
-function generateMailMerge(teamData, rowData) {
+function generateMailMerge(teamData, selfScoreTeamData, rowData) {
 	const controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel') 
-	const header = controlPanel.getRange('B39').getValue()
-	const footer = controlPanel.getRange('B41').getValue()
+	const header = controlPanel.getRange('MailMergeHeaderText').getValue()
+	const footer = controlPanel.getRange('MailMergeFooterText').getValue()
+			
+	// The same as teamData, but the scoring team is now the key, and the
+	// receiving team is the opponent.
+	const inverseTeamData = Object.entries(teamData).reduce((dict, [receivingTeam, scores]) => {
+		scores.forEach(score => {
+			const scoringTeam = score.opponent
+			if (!dict.hasOwnProperty(scoringTeam)) {
+				dict[scoringTeam] = []
+			}
+			let inverseScore = {...score}
+			inverseScore.opponent = receivingTeam
+			dict[scoringTeam].push(inverseScore)
+		})
+		return dict
+	}, {})
 
-	const teamToLastEmailAddressDictionary = getTeamToLastEmailAddressDictionary(rowData)
+	const teamToEmailAddressesDictionary = getTeamToEmailAddressesDictionary(rowData)
 	const mailMergeByTeam = Object.keys(teamData).reduce((dict, teamName) => ({
 		...dict,
-		[teamName]: { 
-			emailAddress: teamToLastEmailAddressDictionary[teamName],
+		[teamName]: {
+			emailAddressesString: teamToEmailAddressesDictionary[teamName]?.join(', ') || '',
 			emailSubject: `Spirit Scores for ${teamName}`,
 			emailBody: `${header}\n`
 	 }}), {})
 	Object.entries(teamData).forEach(([teamName, scores]) => {
+		mailMergeByTeam[teamName].emailBody += '\n'
+		mailMergeByTeam[teamName].emailBody += 'Scores given to you by other teams:'
+		
 		scores.forEach(score => {
 			const scoringTeam = score.opponent
 			const round = score.round || 'N/A'
@@ -425,7 +502,66 @@ function generateMailMerge(teamData, rowData) {
 			mailMergeByTeam[teamName].emailBody += SCORE_KEYS.reduce((str, scoreKey) =>
 				str + `\n${SCORE_KEYS_TO_COLUMN_HEADING[scoreKey]}: ${score[scoreKey]}`, ''
 			)
+      mailMergeByTeam[teamName].emailBody += SCORE_KEYS.reduce((str, scoreKey) => {
+        if (score.comments && score.comments[scoreKey] !== '') {
+          return str + `\n${SCORE_KEYS_TO_COLUMN_HEADING[scoreKey]} Comments: ${score.comments[scoreKey]}`;
+        }
+        return str;
+      }, '');
 		})
+				
+		const inverseScores = inverseTeamData[teamName]
+		if (inverseScores) {
+			mailMergeByTeam[teamName].emailBody += '\n\n\n\n'
+			mailMergeByTeam[teamName].emailBody += 'Scores that you gave other teams:'
+					
+			inverseScores.forEach(score => {
+				const receivingTeam = score.opponent
+				const round = score.round || 'N/A'
+				const day = score.date || 'N/A'
+				
+				mailMergeByTeam[teamName].emailBody += "\n\n"
+				mailMergeByTeam[teamName].emailBody += `Team: ${receivingTeam}\n`
+				mailMergeByTeam[teamName].emailBody += `Round: ${round}\n`
+				mailMergeByTeam[teamName].emailBody += `Day: ${day}`
+				
+				mailMergeByTeam[teamName].emailBody += SCORE_KEYS.reduce((str, scoreKey) =>
+					str + `\n${SCORE_KEYS_TO_COLUMN_HEADING[scoreKey]}: ${score[scoreKey]}`, ''
+				)
+				mailMergeByTeam[teamName].emailBody += SCORE_KEYS.reduce((str, scoreKey) => {
+					if (score.comments && score.comments[scoreKey] !== '') {
+						return str + `\n${SCORE_KEYS_TO_COLUMN_HEADING[scoreKey]} Comments: ${score.comments[scoreKey]}`;
+					}
+					return str;
+				}, '');
+			})
+		}
+				
+		const selfScores = selfScoreTeamData[teamName]
+		if (selfScores && selfScores.length) {
+			mailMergeByTeam[teamName].emailBody += '\n\n\n\n'
+			mailMergeByTeam[teamName].emailBody += 'Scores given to you by your own team:'
+			
+			selfScores.forEach(score => {
+				const opponent = score.opponent
+				const round = score.round || 'N/A'
+				const day = score.date || 'N/A'
+				mailMergeByTeam[teamName].emailBody += "\n\n"
+				mailMergeByTeam[teamName].emailBody += `Team: ${opponent}\n`
+				mailMergeByTeam[teamName].emailBody += `Round: ${round}\n`
+				mailMergeByTeam[teamName].emailBody += `Day: ${day}`
+				mailMergeByTeam[teamName].emailBody += SCORE_KEYS.reduce((str, scoreKey) =>
+					str + `\n${SCORE_KEYS_TO_COLUMN_HEADING[scoreKey]}: ${score[scoreKey]}`, ''
+				)
+				mailMergeByTeam[teamName].emailBody += SCORE_KEYS.reduce((str, scoreKey) => {
+					if (score.comments && score.comments[scoreKey] !== '') {
+						return str + `\n${SCORE_KEYS_TO_COLUMN_HEADING[scoreKey]} Comments: ${score.comments[scoreKey]}`;
+					}
+					return str;
+				}, '');
+			})
+		}
+
 		mailMergeByTeam[teamName].emailBody += `\n\n${footer}`
 	})
 	
@@ -441,8 +577,8 @@ function importMailMergeIntoSheet(mailMergeData) {
 	}
 	createColumnHeadings(mailMergePreviewSheet, MAIL_MERGE_COLUMN_HEADINGS)
 
-	const rowData = Object.entries(mailMergeData).map(([teamName, { emailAddress, emailSubject, emailBody }]) => [
-		emailAddress,
+	const rowData = Object.entries(mailMergeData).map(([teamName, { emailAddressesString, emailSubject, emailBody }]) => [
+		emailAddressesString,
 		emailSubject,
 		emailBody
 	])
@@ -460,22 +596,23 @@ function sendEmails() {
 	const mailMergePreviewSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Mail Merge Preview')
 	const emailRows = mailMergePreviewSheet.getDataRange().getValues()
 	emailRows.shift()
-	emailRows.forEach(row => {
-		try {
-			GmailApp.sendEmail(
-				row[MAIL_MERGE_ENUM['Email Address']],
-				row[MAIL_MERGE_ENUM['Subject']],
-				row[MAIL_MERGE_ENUM['Body']]
-			)
-			log(`sent email with subject '${row[MAIL_MERGE_ENUM['Subject']]}' to ${row[MAIL_MERGE_ENUM['Email Address']]}`)
-		} catch (e) {
-			log(`FAILED sending email with subject '${row[MAIL_MERGE_ENUM['Subject']]}' to ${row[MAIL_MERGE_ENUM['Email Address']]}:\n${e}`)
-      throw(e)
-		}
-  })
+	emailRows
+		.filter(row => row[MAIL_MERGE_ENUM['Email Addresses']])
+		.forEach(row => {
+			try {
+				GmailApp.sendEmail(
+					row[MAIL_MERGE_ENUM['Email Addresses']],
+					row[MAIL_MERGE_ENUM['Subject']],
+					row[MAIL_MERGE_ENUM['Body']]
+				)
+				log(`sent email with subject '${row[MAIL_MERGE_ENUM['Subject']]}' to ${row[MAIL_MERGE_ENUM['Email Addresses']]}`)
+			} catch (e) {
+				log(`FAILED sending email with subject '${row[MAIL_MERGE_ENUM['Subject']]}' to ${row[MAIL_MERGE_ENUM['Email Addresses']]}:\n${e}`)
+				throw(e)
+			}
+		})
 	const controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel')
-	controlPanel.getRange('A15').setValue('Emails last sent:')
-	controlPanel.getRange('B15').setValue(formatDate(new Date(Date.now())))
+	controlPanel.getRange('EmailsLastSent').setValue(formatDate(new Date(Date.now())))
 }
 
 function compileTeamAverages(teamData) {
