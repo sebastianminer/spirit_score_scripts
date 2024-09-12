@@ -35,6 +35,7 @@ const RAW_SCORE_COLUMN_HEADINGS = [
 	'Communication and Conduct',
 	'Comments (Communication and Conduct)',
 	'Additional Comments',
+  'Game Had Observers',
 	'Observer Score',
 	'Observer Comments',
 	'(Self) Rules Knowledge and Use',
@@ -67,7 +68,7 @@ const COLUMNS_PER_CATEGORY = 2
 const NUM_INITIAL_COLUMNS = RAW_SCORE_ENUM['Rules Knowledge and Use']
 		
 // number of columns for observer scores
-const NUM_OBSERVER_COLUMNS = 2
+const NUM_OBSERVER_COLUMNS = 3
 
 function enumify(obj) {
 	return obj.map((heading, index) => ({ [heading]: index }))
