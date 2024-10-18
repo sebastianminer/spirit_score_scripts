@@ -446,7 +446,7 @@ function importTeamsIntoDatabase(teamData, teamDataSheet) {
 function getTeamToEmailAddressesDictionary(rowData) {
 	const teamToEmailAddressesDictionary = rowData.reduce((dict, row) => {
 		const teamName = row[RAW_SCORE_ENUM['Your Team Name']]
-		const email = row[RAW_SCORE_ENUM['Email']]
+		const email = row[RAW_SCORE_ENUM['Email']].toLowerCase()
 		if (!dict.hasOwnProperty(teamName)) {
 			dict[teamName] = new Set()
 		}
@@ -609,7 +609,6 @@ function sendEmails() {
 				log(`sent email with subject '${row[MAIL_MERGE_ENUM['Subject']]}' to ${row[MAIL_MERGE_ENUM['Email Addresses']]}`)
 			} catch (e) {
 				log(`FAILED sending email with subject '${row[MAIL_MERGE_ENUM['Subject']]}' to ${row[MAIL_MERGE_ENUM['Email Addresses']]}:\n${e}`)
-				throw(e)
 			}
 		})
 	const controlPanel = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel')
