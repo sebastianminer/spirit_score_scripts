@@ -67,7 +67,7 @@ function copyFilesToFolder(fileIterator, folder) {
 		return
 	}
 
-	let formUrl
+	let form
 	let controlPanelSpreadsheet
 	while (fileIterator.hasNext()) {
 		let file = fileIterator.next()
@@ -85,19 +85,24 @@ function copyFilesToFolder(fileIterator, folder) {
 
 		// if the file is the form, set its title
 		if (mimeType === MimeType.GOOGLE_FORMS) {
-			FormApp.openById(newFile.getId()).setTitle(name)
-			formUrl = newFile.getUrl()
+			form = FormApp.openById(newFile.getId())
+			form.setTitle(name)
 		} else if (mimeType === MimeType.GOOGLE_SHEETS) {
 			controlPanelSpreadsheet = SpreadsheetApp.openById(newFile.getId())
 		}
 	}
 
-	linkSheetToForm(FormApp.openByUrl(formUrl), controlPanelSpreadsheet, 'Raw Scores', RAW_SCORE_COLUMN_HEADINGS)
+	linkSheetToForm(form, controlPanelSpreadsheet, 'Raw Scores', RAW_SCORE_COLUMN_HEADINGS)
 	createColumnHeadings(controlPanelSpreadsheet.getSheetByName('Raw Scores'), RAW_SCORE_COLUMN_HEADINGS)
+	publishForm(form)
 
 	// refresh sheet references in the formulas in these sheets, because the raw scores sheet didn't exist before,
 	//  causing the references to break until we refresh them
 	remakeSheets(controlPanelSpreadsheet, SHEETS_TO_REMAKE)
+}
+
+function publishForm(form) {
+	form.setPublished(true)
 }
 
 function createColumnHeadings(sheet, columnHeadings) {
