@@ -108,8 +108,13 @@ function aggregateScoresAndGenerateMailMerge() {
 	let rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Team Data')
 
-  teamDataSheet.clearContents()
-	teamDataSheet.getRange('2:2').clearFormat() // clear green formatting on winner row, if the sheet had been sorted previously
+  const lastRow = teamDataSheet.getLastRow()
+  const lastCol = teamDataSheet.getLastColumn()
+  if (lastCol > 1 && lastRow > 1) {
+	  teamDataSheet.getRange(2, 1, lastRow, lastCol).setBackground(null) // clear green formatting on winner row, if the sheet had been sorted previously
+  }
+
+	teamDataSheet.clearContents()
 
 	let columnNames = getColumnNames(rawScoreSheet)
 	let rowData = getRowData(rawScoreSheet, columnNames.length)
