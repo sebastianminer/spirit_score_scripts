@@ -7,10 +7,10 @@ const SCORE_KEYS_TO_COLUMN_HEADING = {
 }
 const TEAM_DATA_COLUMN_HEADINGS = [
 	'Team',
-	'Number of Scores Submitted',
-	'Number of Scores Received',
+	'# of Scores Submitted',
+	'# of Scores Received',
 	'Teams Scored',
-	'Teams Who Need to Be Scored',
+	'Teams They Need to Score',
 	'Teams from Whom a Score Is Needed',
 	'Total',
 	'Rules Knowledge and Use',
@@ -56,10 +56,12 @@ const RAW_SCORE_ENUM = enumify(RAW_SCORE_COLUMN_HEADINGS)
 const TEAM_DATA_ENUM = enumify(TEAM_DATA_COLUMN_HEADINGS)
 const MAIL_MERGE_ENUM = enumify(MAIL_MERGE_COLUMN_HEADINGS)
 
-const RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS = [...RAW_SCORE_COLUMN_HEADINGS]
-RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS.splice(RAW_SCORE_ENUM['Rules Knowledge and Use'], 0, 'Total Score')
+const PROCESSED_SCORE_SHEET_NAME = 'Processed Scores'
+const PROCESSED_SCORE_COLUMN_HEADINGS = [...RAW_SCORE_COLUMN_HEADINGS]
+PROCESSED_SCORE_COLUMN_HEADINGS.splice(RAW_SCORE_ENUM['Rules Knowledge and Use'], 0, 'Total Score')
+PROCESSED_SCORE_COLUMN_HEADINGS.push('Game Key', 'Game First Timestamp', 'Game Pair Order')
 
-const RAW_SCORE_TOTAL_ENUM = enumify(RAW_SCORE_WITH_TOTAL_COLUMN_HEADINGS)
+const PROCESSED_SCORE_ENUM = enumify(PROCESSED_SCORE_COLUMN_HEADINGS)
 
 // each category has a score and a comment. This is the number of columns created for each key for each team.
 const COLUMNS_PER_CATEGORY = 2
@@ -106,8 +108,9 @@ function aggregateScoresAndGenerateMailMerge() {
 	let rawScoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Scores')
 	let teamDataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Team Data')
 
-	teamDataSheet.clearContents()
+  teamDataSheet.clearContents()
 	teamDataSheet.getRange('2:2').clearFormat() // clear green formatting on winner row, if the sheet had been sorted previously
+
 	let columnNames = getColumnNames(rawScoreSheet)
 	let rowData = getRowData(rawScoreSheet, columnNames.length)
 	let teamData = compileTeamData(rowData)
@@ -118,6 +121,13 @@ function aggregateScoresAndGenerateMailMerge() {
 
 	controlPanel.getRange('ScoresLastCalculated').setValue(formatDate(new Date(Date.now())))
 	log('aggregateScoresAndGenerateMailMerge() success!')
+}
+
+function doItAll() {
+	colorFormattingButtonClick()
+  sortRawScoreSheet()
+	addProcessedScoreSheet()
+  aggregateScoresAndGenerateMailMerge()
 }
 
 function colorFormattingButtonClick() {
@@ -158,157 +168,275 @@ function sortRawScoreSheet() {
 	let numRows = getFirstEmptyRow(rawScoreSheet) - 2
 	let range = rawScoreSheet.getRange(2, 1, numRows, numColumns)
 	range.sort({
-		column: RAW_SCORE_TOTAL_ENUM.Timestamp + 1,
+		column: PROCESSED_SCORE_ENUM.Timestamp + 1,
 	})
 	addColorFormattingAndColumnHeadings()
 	log('sortRawScoreSheet() success!')
 }
 
-function addTotalScoreToRawScoreSheet() {
-	log('running addTotalScoreToRawScoreSheet()')
-	let activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet()
-	let rawScoreSheet = activeSpreadsheet.getSheetByName('Raw Scores')
-	let numRows = getFirstEmptyRow(rawScoreSheet) - 2
-	let numColumns = RAW_SCORE_COLUMN_HEADINGS.length
-	let rowData = getRowDataIncludingEmpty(rawScoreSheet, numColumns)
-	let scoreIndicesInRow = [
-		RAW_SCORE_ENUM['Rules Knowledge and Use'],
-		RAW_SCORE_ENUM['Fouls and Body Contact'],
-		RAW_SCORE_ENUM['Communication and Conduct']
-	]
-	let totals = rowData.map(row => row[0]
-		? scoreIndicesInRow.reduce((sum, index) => sum + row[index], 0)
-		: '')
-	let totalsTransposed = [...totals.map(value => [value])]
+function addProcessedScoreSheet() {
+	log('running addProcessedScoreSheet()')
 
-	numRows++
-	let rawScoresWithTotalsSheet = activeSpreadsheet.getSheetByName('Raw Scores With Totals')
-	if (rawScoresWithTotalsSheet) {
-		rawScoresWithTotalsSheet.clear()
+	const ss = SpreadsheetApp.getActiveSpreadsheet()
+	const rawScoreSheet = ss.getSheetByName('Raw Scores')
+	const numRawColumns = RAW_SCORE_COLUMN_HEADINGS.length
+	const rawRows = getRowData(rawScoreSheet, numRawColumns)
+
+	const processedRows = rawRows.map(row => {
+		const total =
+			Number(row[RAW_SCORE_ENUM['Rules Knowledge and Use']] || 0) +
+			Number(row[RAW_SCORE_ENUM['Fouls and Body Contact']] || 0) +
+			Number(row[RAW_SCORE_ENUM['Communication and Conduct']] || 0)
+
+		const team = row[RAW_SCORE_ENUM['Your Team Name']]
+		const opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
+		const day = row[RAW_SCORE_ENUM['Day']]
+		const round = row[RAW_SCORE_ENUM['Round']]
+
+		const teamsSorted = [team, opponent].sort()
+		const gameKey = `${day} | ${round} | ${teamsSorted[0]} | ${teamsSorted[1]}`
+
+		const totalColumnIndex = RAW_SCORE_ENUM['Rules Knowledge and Use']
+
+		return [
+			...row.slice(0, totalColumnIndex),
+			total,
+			...row.slice(totalColumnIndex),
+			gameKey,
+			'', // Game First Timestamp, filled below
+			''  // Game Pair Order, filled below
+		]
+	})
+
+	const gameFirstTimestamp = {}
+	processedRows.forEach(row => {
+		const gameKey = row[PROCESSED_SCORE_ENUM['Game Key']]
+		const timestamp = row[PROCESSED_SCORE_ENUM['Timestamp']]
+		if (!gameFirstTimestamp[gameKey] || timestamp < gameFirstTimestamp[gameKey]) {
+			gameFirstTimestamp[gameKey] = timestamp
+		}
+	})
+
+	const gameCounts = {}
+	processedRows.forEach(row => {
+		const gameKey = row[PROCESSED_SCORE_ENUM['Game Key']]
+		gameCounts[gameKey] = (gameCounts[gameKey] || 0) + 1
+
+		row[PROCESSED_SCORE_ENUM['Game First Timestamp']] = gameFirstTimestamp[gameKey]
+		row[PROCESSED_SCORE_ENUM['Game Pair Order']] = gameCounts[gameKey]
+	})
+
+	processedRows.sort((a, b) => {
+		const firstTimeA = a[PROCESSED_SCORE_ENUM['Game First Timestamp']]
+		const firstTimeB = b[PROCESSED_SCORE_ENUM['Game First Timestamp']]
+		const pairOrderA = a[PROCESSED_SCORE_ENUM['Game Pair Order']]
+		const pairOrderB = b[PROCESSED_SCORE_ENUM['Game Pair Order']]
+		const timestampA = a[PROCESSED_SCORE_ENUM['Timestamp']]
+		const timestampB = b[PROCESSED_SCORE_ENUM['Timestamp']]
+
+		return firstTimeA - firstTimeB ||
+			pairOrderA - pairOrderB ||
+			timestampA - timestampB
+	})
+
+	let processedSheet = ss.getSheetByName(PROCESSED_SCORE_SHEET_NAME)
+	if (processedSheet) {
+		processedSheet.clearContents()
+    processedSheet
+    	.getRange(2, 1, processedSheet.getMaxRows() - 1, processedSheet.getMaxColumns())
+	    .setBackground(null).setWrap(false)
+      .setBorder(false, false, false, false, false, false)
+    // resetRowsToModalHeight(processedSheet)
 	} else {
-		rawScoresWithTotalsSheet = activeSpreadsheet.insertSheet('Raw Scores With Totals')
+		processedSheet = ss.insertSheet(PROCESSED_SCORE_SHEET_NAME)
 	}
-	let totalsColumnIndex = RAW_SCORE_ENUM['Rules Knowledge and Use'] + 1
-	let staticRange = rawScoreSheet.getRange(1, 1, numRows, totalsColumnIndex - 1)
-	let staticTargetRange = rawScoresWithTotalsSheet.getRange(1, 1, numRows, totalsColumnIndex - 1)
-	let rangeToMove = rawScoreSheet.getRange(1, totalsColumnIndex, numRows, numColumns - totalsColumnIndex + 1)
-	let targetRange = rawScoresWithTotalsSheet.getRange(1, totalsColumnIndex + 1, numRows, numColumns - totalsColumnIndex + 1)
-	staticRange.copyTo(staticTargetRange)
-	rangeToMove.copyTo(targetRange)
 
-	rawScoresWithTotalsSheet.getRange(1, totalsColumnIndex).setValue('Total Score')
-	numRows--
-	let totalsColumnRange = rawScoresWithTotalsSheet.getRange(2, totalsColumnIndex, numRows, 1)
-	totalsColumnRange.setValues(totalsTransposed)
+	createColumnHeadings(processedSheet, PROCESSED_SCORE_COLUMN_HEADINGS)
 
-	formatRawScoresWithTotalsSheet(rawScoresWithTotalsSheet, totalsColumnRange)
+	if (processedRows.length) {
+		processedSheet
+			.getRange(2, 1, processedRows.length, PROCESSED_SCORE_COLUMN_HEADINGS.length)
+			.setValues(processedRows)
+	}
 
-	log('addTotalScoreToRawScoreSheet() success!')
+  formatProcessedScoreSheet(processedSheet)
+  addConditionalFormatting(processedSheet)
+  addDuplicateFormatting(processedSheet)
+  addSelfScoreFormatting(processedSheet)
+
+	log('addProcessedScoreSheet() success!')
 }
 
-function formatRawScoresWithTotalsSheet(rawScoresWithTotalsSheet, totalsColumnRange) {
-	let totalColumnLetter = columnToLetter(RAW_SCORE_TOTAL_ENUM['Total Score'] + 1)
-	let fourRule = SpreadsheetApp.newConditionalFormatRule()
-		.setRanges([totalsColumnRange])
-		.whenFormulaSatisfied(`=AND($${totalColumnLetter}2 <= 4, $${totalColumnLetter}2 <> "")`)
-		.setBackground('#FCE8B2')
-		.build()
-	let eightRule = SpreadsheetApp.newConditionalFormatRule()
-		.setRanges([totalsColumnRange])
-		.whenFormulaSatisfied(`=AND($${totalColumnLetter}2 >= 8, $${totalColumnLetter}2 <> "")`)
-		.setBackground('#B7E1CD')
-		.build()
-	rawScoresWithTotalsSheet.setConditionalFormatRules([fourRule, eightRule, ...rawScoresWithTotalsSheet.getConditionalFormatRules()])
-	rawScoresWithTotalsSheet.setFrozenRows(1)
+function formatProcessedScoreSheet(processedSheet) {
+	const totalColumnLetter = columnToLetter(PROCESSED_SCORE_ENUM['Total Score'] + 1)
+	const numRows = Math.max(processedSheet.getLastRow() - 1, 1)
+
+	const totalsColumnRange = processedSheet.getRange(
+		2,
+		PROCESSED_SCORE_ENUM['Total Score'] + 1,
+		numRows,
+		1
+	)
+
+	processedSheet.setFrozenRows(1)
+
+  const gamePairOrderCol = PROCESSED_SCORE_ENUM['Game Pair Order'] + 1
+  const lastRow = processedSheet.getLastRow()
+  const lastCol = processedSheet.getLastColumn()
+
+  if (lastRow > 1) {
+    const pairOrderValues = processedSheet
+      .getRange(2, gamePairOrderCol, lastRow - 1, 1)
+      .getValues()
+
+    pairOrderValues.forEach((row, index) => {
+      const pairOrder = row[0]
+      if (pairOrder === 1) {
+        const sheetRow = index + 2
+        processedSheet
+          .getRange(sheetRow, 1, 1, lastCol)
+          .setBorder(true, null, null, null, null, null, '#000000', SpreadsheetApp.BorderStyle.SOLID)
+      }
+    })
+  }
 }
 
 function addSelfScoreFormatting(sheet) {
-	let numRows = getFirstEmptyRow(sheet) - 2
-	let numCols = RAW_SCORE_COLUMN_HEADINGS.length
-	let range = sheet.getRange(2, 1, numRows, numCols)
-	let rows = range.getValues()
-	let duplicateRowIndices = []
-	rows.forEach((row, index) => {
-		let team = row[RAW_SCORE_ENUM['Your Team Name']]
-		let opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
-		if (team === opponent && team !== '') {
-			duplicateRowIndices.push(index)
-		}
-	})
+  const { enum: scoreEnum, headings } = getScoreSheetConfig(sheet);
 
-	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
-	let opponentColNum = RAW_SCORE_ENUM['Opponent Team Name'] + 1
-	numCols = opponentColNum - teamColNum + 1
-	duplicateRowIndices.forEach(rowIndex => {
-		let rowNum = rowIndex + 2
-		let range = sheet.getRange(rowNum, teamColNum, 1, numCols)
-		range.clearFormat()
-		range.setBackground('#B57924')
-	})
+  const numRows = sheet.getLastRow() - 1;
+  if (numRows <= 0) return;
+
+  const numCols = headings.length;
+  const range = sheet.getRange(2, 1, numRows, numCols);
+  const rows = range.getValues();
+
+  const selfScoreRowIndices = [];
+
+  rows.forEach((row, index) => {
+    const team = row[scoreEnum['Your Team Name']];
+    const opponent = row[scoreEnum['Opponent Team Name']];
+
+    if (team === opponent && team !== '') {
+      selfScoreRowIndices.push(index);
+    }
+  });
+
+  const teamColNum = scoreEnum['Your Team Name'] + 1;
+  const opponentColNum = scoreEnum['Opponent Team Name'] + 1;
+  const colsToColor = opponentColNum - teamColNum + 1;
+
+  selfScoreRowIndices.forEach(rowIndex => {
+    const rowNum = rowIndex + 2;
+    sheet
+      .getRange(rowNum, teamColNum, 1, colsToColor)
+      .setBackground('#B57924');
+  });
 }
 
 function addDuplicateFormatting(sheet) {
-	let numRows = getFirstEmptyRow(sheet) - 2
-	let numCols = RAW_SCORE_COLUMN_HEADINGS.length
-	let range = sheet.getRange(2, 1, numRows, numCols)
-	let rows = range.getValues()
-	let possibleDuplicates = {}
-	rows.forEach((row, index) => {
-		let team = row[RAW_SCORE_ENUM['Your Team Name']]
-		let opponent = row[RAW_SCORE_ENUM['Opponent Team Name']]
-		let date = row[RAW_SCORE_ENUM['Day']]
-		let tupleStr = team + opponent + date
-		if (possibleDuplicates[tupleStr]) {
-			possibleDuplicates[tupleStr].push(index)
-		} else {
-			possibleDuplicates[tupleStr] = [index]
-		}
-	})
-	possibleDuplicates = Object.entries(possibleDuplicates)
-		.filter(([key, value]) => key && value.length > 1)
-		.reduce((cumulativeObj, [key, value]) => ({ ...cumulativeObj, [key]: value }), {})
+  const { enum: scoreEnum, headings } = getScoreSheetConfig(sheet);
 
-	let teamColNum = RAW_SCORE_ENUM['Your Team Name'] + 1
-	let dateColNum = RAW_SCORE_ENUM['Day'] + 1
-	numCols = dateColNum - teamColNum + 1
-	Object.keys(possibleDuplicates).forEach(key => {
-		possibleDuplicates[key].forEach(rowIndex => {
-			let rowNum = rowIndex + 2
-			let range = sheet.getRange(rowNum, teamColNum, 1, numCols)
-			range.clearFormat()
-			range.setBackground('#A8DFFF')
-		})
-	})
+  const numRows = sheet.getLastRow() - 1;
+  if (numRows <= 0) return;
+
+  const numCols = headings.length;
+  const range = sheet.getRange(2, 1, numRows, numCols);
+  const rows = range.getValues();
+
+  let possibleDuplicates = {};
+
+  rows.forEach((row, index) => {
+    const team = row[scoreEnum['Your Team Name']];
+    const opponent = row[scoreEnum['Opponent Team Name']];
+    const date = row[scoreEnum['Day']];
+    const tupleStr = `${team}|${opponent}|${date}`;
+
+    if (!team || !opponent || !date) return;
+
+    if (possibleDuplicates[tupleStr]) {
+      possibleDuplicates[tupleStr].push(index);
+    } else {
+      possibleDuplicates[tupleStr] = [index];
+    }
+  });
+
+  possibleDuplicates = Object.entries(possibleDuplicates)
+    .filter(([key, value]) => key && value.length > 1)
+    .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
+
+  const teamColNum = scoreEnum['Your Team Name'] + 1;
+  const dateColNum = scoreEnum['Day'] + 1;
+  const colsToColor = dateColNum - teamColNum + 1;
+
+  Object.keys(possibleDuplicates).forEach(key => {
+    possibleDuplicates[key].forEach(rowIndex => {
+      const rowNum = rowIndex + 2;
+      sheet
+        .getRange(rowNum, teamColNum, 1, colsToColor)
+        .setBackground('#A8DFFF');
+    });
+  });
 }
 
 function addConditionalFormatting(sheet) {
-	let columnsToSum = ['Rules Knowledge and Use', 'Fouls and Body Contact', 'Communication and Conduct']
-		.map(key => columnToLetter(RAW_SCORE_ENUM[key] + 1))
-	let sumArgumentsString = columnsToSum.map(letter => `$${letter}2`).join(',')
-	let numColumns = RAW_SCORE_COLUMN_HEADINGS.length
-	let range = sheet.getRange(`A2:${columnToLetter(numColumns)}1000`)
-	range.clearFormat()
-	let zeroRule = SpreadsheetApp.newConditionalFormatRule()
-		.setRanges([range])
-		.whenNumberEqualTo(0)
-		.setBackground('#F4C7C3')
-		.build()
-	let fourRule = SpreadsheetApp.newConditionalFormatRule()
-		.setRanges([range])
-		.whenNumberEqualTo(4)
-		.setBackground('#84D6AF')
-		.build()
-	let fourTotalRule = SpreadsheetApp.newConditionalFormatRule()
-		.setRanges([range])
-		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) <= 4, $A2 <> "")`)
-		.setBackground('#FCE8B2')
-		.build()
-	let eightTotalRule = SpreadsheetApp.newConditionalFormatRule()
-		.setRanges([range])
-		.whenFormulaSatisfied(`=AND(SUM(${sumArgumentsString}) >= 8, $A2 <> "")`)
-		.setBackground('#B7E1CD')
-		.build()
-	sheet.setConditionalFormatRules([zeroRule, fourRule, fourTotalRule, eightTotalRule])
+  const { enum: scoreEnum, headings } = getScoreSheetConfig(sheet)
+
+  const scoreColumnNames = [
+    'Rules Knowledge and Use',
+    'Fouls and Body Contact',
+    'Communication and Conduct',
+    'Observer Score',
+    '(Self) Rules Knowledge and Use',
+    '(Self) Fouls and Body Contact',
+    '(Self) Communication and Conduct'
+  ]
+
+  const numRows = Math.max(sheet.getLastRow() - 1, 1)
+  const numColumns = headings.length
+
+  const dataRange = sheet.getRange(2, 1, numRows, numColumns)
+
+  const scoreRanges = scoreColumnNames.map(columnName =>
+    sheet.getRange(2, scoreEnum[columnName] + 1, numRows, 1)
+  )
+
+  const scoreColumnLetters = scoreColumnNames.slice(0, 3).map(columnName =>
+    columnToLetter(scoreEnum[columnName] + 1)
+  )
+
+  const sumFormula = scoreColumnLetters.map(letter => `$${letter}2`).join(',')
+
+  const zeroRule = SpreadsheetApp.newConditionalFormatRule()
+    .setRanges(scoreRanges)
+    .whenNumberEqualTo(0)
+    .setBackground('#F4C7C3')
+    .build()
+
+  const fourRule = SpreadsheetApp.newConditionalFormatRule()
+    .setRanges(scoreRanges)
+    .whenNumberEqualTo(4)
+    .setBackground('#84D6AF')
+    .build()
+
+  const lowTotalRule = SpreadsheetApp.newConditionalFormatRule()
+    .setRanges([dataRange])
+    .whenFormulaSatisfied(`=AND($A2 <> "", SUM(${sumFormula}) <= 4)`)
+    .setBackground('#FCE8B2')
+    .build()
+
+  const highTotalRule = SpreadsheetApp.newConditionalFormatRule()
+    .setRanges([dataRange])
+    .whenFormulaSatisfied(`=AND($A2 <> "", SUM(${sumFormula}) >= 8)`)
+    .setBackground('#B7E1CD')
+    .build()
+
+  sheet.setConditionalFormatRules([
+    zeroRule,
+    fourRule,
+    lowTotalRule,
+    highTotalRule
+  ])
 }
 
 function getColumnNames(sheet) {
@@ -590,6 +718,17 @@ function importMailMergeIntoSheet(mailMergeData) {
 
 function sendEmails() {
 	const ui = SpreadsheetApp.getUi()
+
+  // Check for placeholder name
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Control Panel');
+  const nameCell = sheet.getRange('B38');
+  const nameValue = nameCell.getValue().trim();
+  if (/^e\.?g\.?/i.test(nameValue)) {
+    ui.alert('Please add name', 'Before sending emails, please put the Spirit Director\'s name in cell B38.\nThen regenerate the Team Data & Mail Merge sheets.', ui.ButtonSet.OK);
+    return;
+  }
+
+  // Make sure the person really meant to send.
 	const result = ui.alert('Please confirm', 'Are you sure you want to send emails to your teams?', ui.ButtonSet.YES_NO)
 	if (result != ui.Button.YES) {
 		return
@@ -844,4 +983,54 @@ function letterToColumn(letter) {
 		column += (letter.charCodeAt(i) - 64) * Math.pow(26, length - i - 1);
 	}
 	return column;
+}
+
+function resetRowsToModalHeight(sheet, startRow = 2) {
+  const numRows = sheet.getMaxRows() - startRow + 1;
+  if (numRows <= 0) return;
+
+  const heights = Array.from(
+    { length: numRows },
+    (_, i) => sheet.getRowHeight(startRow + i)
+  );
+
+  const modalHeight = mode(heights);
+
+  sheet.setRowHeights(startRow, numRows, modalHeight);
+}
+
+function mode(values) {
+  if (!values.length) {
+    throw new Error('Cannot calculate mode of an empty array.');
+  }
+
+  const counts = new Map();
+  let bestValue = values[0];
+  let bestCount = 0;
+
+  for (const value of values) {
+    const count = (counts.get(value) || 0) + 1;
+    counts.set(value, count);
+
+    if (count > bestCount) {
+      bestValue = value;
+      bestCount = count;
+    }
+  }
+
+  return bestValue;
+}
+
+function getScoreSheetConfig(sheet) {
+  if (sheet.getName() === PROCESSED_SCORE_SHEET_NAME) {
+    return {
+      enum: PROCESSED_SCORE_ENUM,
+      headings: PROCESSED_SCORE_COLUMN_HEADINGS
+    }
+  }
+
+  return {
+    enum: RAW_SCORE_ENUM,
+    headings: RAW_SCORE_COLUMN_HEADINGS
+  }
 }
